@@ -3,68 +3,117 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BMO Interactivo</title>
+<title>BMO - Receptor de Coordenadas</title>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; touch-action: none; }
-    body { background-color: #66E0D4; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; transition: background-color 0.5s ease; font-family: sans-serif; }
-    .shaking-active { background-color: #ff4d4d !important; }
-    .face-svg { width: 300px; height: auto; transition: transform 0.05s; }
-    .stroke-line { fill: none; stroke: #1a1a1a; stroke-width: 4; stroke-linecap: round; transition: d 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s; }
-    .eye-dot { fill: #1a1a1a; opacity: 0; transition: opacity 0.4s; }
-    .mouth-open { fill: #2d9188; stroke: #1a1a1a; stroke-width: 3; opacity: 0; transform-origin: center; }
+    body { 
+        background-color: #66E0D4; 
+        height: 100vh; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        overflow: hidden; 
+        transition: background-color 0.5s ease; 
+        font-family: sans-serif; 
+    }
+    
+    .face-svg { width: 350px; height: auto; transition: transform 0.05s; }
+    
+    /* Las líneas de la cara con transiciones suaves para animarse */
+    .stroke-line { 
+        fill: none; 
+        stroke: #1a1a1a; 
+        stroke-width: 5; 
+        stroke-linecap: round; 
+        transition: d 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s; 
+    }
+
+    .eye-dot { fill: #1a1a1a; opacity: 0; transition: opacity 0.3s; }
+    
+    /* Boca animada para cuando habla */
+    .mouth-open { 
+        fill: #2d9188; 
+        stroke: #1a1a1a; 
+        stroke-width: 3; 
+        opacity: 0; 
+        transform-origin: center; 
+    }
+
     .talking .mouth-open { opacity: 1; animation: talk 0.12s infinite alternate; }
     .talking .mouth-closed { opacity: 0; }
-    @keyframes talk { from { transform: scaleY(0.4); } to { transform: scaleY(1.4); } }
-    #status { position: absolute; top: 10px; font-size: 12px; color: #fff; opacity: 0.5; }
+
+    @keyframes talk { 
+        from { transform: scaleY(0.5); } 
+        to { transform: scaleY(1.3); } 
+    }
+
+    #status { position: absolute; top: 10px; font-size: 10px; color: #000; opacity: 0.3; text-transform: uppercase; letter-spacing: 1px; }
 </style>
 </head>
 <body id="mainBody">
-<div id="status">Desconectado del Cerebro</div>
+
+<div id="status">Esperando al Cerebro...</div>
+
 <svg id="faceSvg" class="face-svg" viewBox="0 0 200 150">
     <path id="browL" class="stroke-line" d="M45,40 L65,55" style="opacity:0" />
     <path id="browR" class="stroke-line" d="M155,40 L135,55" style="opacity:0" />
+
     <path id="eyeL" class="stroke-line" d="M50,65 Q60,55 70,65" />
     <path id="eyeR" class="stroke-line" d="M130,65 Q140,55 150,65" />
-    <circle id="dotL" class="eye-dot" cx="60" cy="70" r="5" />
-    <circle id="dotR" class="eye-dot" cx="140" cy="70" r="5" />
+
+    <circle id="dotL" class="eye-dot" cx="60" cy="70" r="6" />
+    <circle id="dotR" class="eye-dot" cx="140" cy="70" r="6" />
+
     <path id="mouthClosed" class="stroke-line mouth-closed" d="M75,105 Q100,115 125,105" />
     <ellipse id="mouthOpen" class="mouth-open" cx="100" cy="110" rx="25" ry="20" />
 </svg>
 
 <script>
 const body = document.getElementById("mainBody");
-const faceSvg = document.getElementById("faceSvg");
 const statusDiv = document.getElementById("status");
 const eyeL = document.getElementById("eyeL"), eyeR = document.getElementById("eyeR");
 const dotL = document.getElementById("dotL"), dotR = document.getElementById("dotR");
 const browL = document.getElementById("browL"), browR = document.getElementById("browR");
 const mouthClosed = document.getElementById("mouthClosed");
 
-const expressions = {
-    happy: { el: "M50,65 Q60,55 70,65", er: "M130,65 Q140,55 150,65", m: "M75,105 Q100,115 125,105", bg: "#66E0D4", dots: 0, brows: 0 },
-    bored: { el: "M50,65 L70,65", er: "M130,65 L150,65", m: "M85,110 L115,110", bg: "#66E0D4", dots: 0, brows: 0 },
-    angry: { el: "M50,65 L70,65", er: "M130,65 L150,65", m: "M75,120 Q100,100 125,120", bg: "#52c7bc", dots: 1, brows: 1 }
-};
-
-function setExpression(name) {
-    const exp = expressions[name] || expressions.happy;
-    eyeL.setAttribute('d', exp.el); eyeR.setAttribute('d', exp.er);
-    eyeL.style.opacity = exp.dots ? 0 : 1; eyeR.style.opacity = exp.dots ? 0 : 1;
-    dotL.style.opacity = exp.dots; dotR.style.opacity = exp.dots;
-    browL.style.opacity = exp.brows; browR.style.opacity = exp.brows;
-    mouthClosed.setAttribute('d', exp.m);
-    body.style.backgroundColor = exp.bg;
-}
-
-// --- CONEXIÓN CON PYTHON ---
+// --- LÓGICA DE RECEPCIÓN ---
 const socket = new WebSocket('ws://localhost:8765');
-socket.onopen = () => statusDiv.innerText = "Cerebro Conectado";
+
+socket.onopen = () => statusDiv.innerText = "Sincronizado";
+
 socket.onmessage = (event) => {
-    const msg = event.data;
-    if (msg.startsWith("FACE:")) setExpression(msg.split(":")[1]);
-    if (msg === "START_TALKING") body.classList.add("talking");
-    if (msg === "STOP_TALKING") body.classList.remove("talking");
+    const data = event.data;
+
+    // Comando para dibujar: DRAW:ojoL|ojoR|boca|color|puntos(0 o 1)|cejas(0 o 1)
+    if (data.startsWith("DRAW:")) {
+        const parts = data.replace("DRAW:", "").split("|");
+        const [dEyeL, dEyeR, dMouth, bgColor, useDots, useBrows] = parts;
+
+        // Actualizar formas
+        eyeL.setAttribute('d', dEyeL);
+        eyeR.setAttribute('d', dEyeR);
+        mouthClosed.setAttribute('d', dMouth);
+        
+        // Actualizar colores
+        body.style.backgroundColor = bgColor;
+
+        // Mostrar u ocultar puntos/cejas (1 = visible, 0 = oculto)
+        dotL.style.opacity = useDots === "1" ? "1" : "0";
+        dotR.style.opacity = useDots === "1" ? "1" : "0";
+        eyeL.style.opacity = useDots === "1" ? "0" : "1";
+        eyeR.style.opacity = useDots === "1" ? "0" : "1";
+        
+        browL.style.opacity = useBrows === "1" ? "1" : "0";
+        browR.style.opacity = useBrows === "1" ? "1" : "0";
+    }
+    
+    // Comandos de habla
+    if (data === "START_TALKING") body.classList.add("talking");
+    if (data === "STOP_TALKING") body.classList.remove("talking");
 };
+
+socket.onclose = () => statusDiv.innerText = "Cerebro Desconectado";
 </script>
 </body>
-</html>
+       </html>
+       
