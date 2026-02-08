@@ -2,156 +2,206 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<title>BMO – Expresiones Inteligentes</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BMO Web</title>
 
 <style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    user-select: none;
+/* ===== VARIABLES ===== */
+:root {
+    --dark:#1a1a1a;
+    --bg:#66e0d1;
+    --sleep:#7de8d1;
+    --t:0.6s ease;
 }
 
-body {
-    background: #66E0D4;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background 0.3s;
-    font-family: sans-serif;
+/* ===== BODY ===== */
+body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:var(--bg);
+    transition:background 1s ease;
+    font-family:sans-serif;
 }
 
-#status {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-size: 14px;
-    background: rgba(0,0,0,0.4);
-    color: white;
-    padding: 6px 10px;
-    border-radius: 6px;
+/* ===== CANVAS ===== */
+.master-canvas{
+    width:500px;
+    height:300px;
+    position:relative;
+    border-radius:30px;
+    background:rgba(255,255,255,.15);
+    overflow:hidden;
 }
 
-.face {
-    width: 300px;
+/* ===== CARAS ===== */
+.face-container{
+    position:absolute;
+    inset:0;
+    opacity:0;
+    transition:opacity .4s ease;
+}
+.face-container.active{
+    opacity:1;
 }
 
-.line {
-    fill: none;
-    stroke: #111;
-    stroke-width: 4;
-    stroke-linecap: round;
+/* ===== SVG ===== */
+svg{width:100%;height:100%}
+.eye-fill,.pupil,.dot{fill:var(--dark)}
+.line,.mouth-line,.face-element{
+    stroke:var(--dark);
+    stroke-width:10;
+    stroke-linecap:round;
+    fill:none;
 }
+.m-border{fill:var(--dark)}
+.m-fill-green{fill:#006338}
+.m-fill-red{fill:#b90000}
+.tongue{fill:#f24e32}
 
-.mouth-open {
-    fill: #2d9188;
-    stroke: #111;
-    stroke-width: 3;
-    opacity: 0;
+/* ===== SUEÑO ===== */
+.sleep-box{
+    width:300px;height:200px;
+    position:relative;
+    margin:auto;
+    top:50px;
 }
+.s-eye{
+    width:45px;height:12px;
+    background:var(--dark);
+    border-radius:6px;
+    position:absolute;top:40%;
+}
+.s-eye.left{left:40px}
+.s-eye.right{right:40px}
+.s-mouth{
+    width:35px;height:35px;
+    border:5px solid var(--dark);
+    border-radius:50%;
+    position:absolute;
+    bottom:20%;left:50%;
+    transform:translateX(-50%);
+    animation:breathe 3s infinite;
+}
+.z{position:absolute;font-weight:900;opacity:0;animation:sleep 4s infinite}
+.z-s{font-size:30px}
+.z-l{font-size:70px;animation-delay:2s}
 
-.talking .mouth-open { opacity: 1; }
-.talking .mouth-closed { opacity: 0; }
+@keyframes breathe{
+    0%,100%{transform:translateX(-50%) scale(.8)}
+    50%{transform:translateX(-50%) scale(1.2)}
+}
+@keyframes sleep{
+    0%{transform:translateY(20px);opacity:0}
+    20%{opacity:1}
+    100%{transform:translate(20px,-50px);opacity:0}
+}
 </style>
 </head>
 
-<body id="body">
+<body>
 
-<div id="status">Conectando...</div>
+<div class="master-canvas">
 
-<svg id="face" class="face" viewBox="0 0 200 150">
-    <path id="eyeL" class="line" />
-    <path id="eyeR" class="line" />
-    <path id="mouthC" class="line mouth-closed" />
-    <ellipse id="mouthO" class="mouth-open" cx="100" cy="100" rx="25" ry="20"/>
+<!-- === f1 Algo mal === -->
+<div id="f1" class="face-container">
+<svg viewBox="0 0 500 300">
+<circle class="eye-fill" cx="170" cy="110" r="10"/>
+<circle class="eye-fill" cx="330" cy="110" r="10"/>
+<line class="mouth-line" x1="210" y1="185" x2="290" y2="170"/>
 </svg>
+</div>
+
+<!-- === f2 Asombro === -->
+<div id="f2" class="face-container">
+<svg viewBox="0 0 500 300">
+<circle class="eye-fill" cx="160" cy="100" r="10"/>
+<circle class="eye-fill" cx="340" cy="100" r="10"/>
+<circle cx="250" cy="180" r="25" stroke="var(--dark)" fill="none" stroke-width="8"/>
+</svg>
+</div>
+
+<!-- === f3 Pensando === -->
+<div id="f3" class="face-container">
+<svg viewBox="0 0 500 300">
+<circle class="pupil" cx="150" cy="120" r="10"/>
+<circle class="pupil" cx="350" cy="120" r="10"/>
+<line class="mouth-line" x1="180" y1="190" x2="320" y2="190"/>
+</svg>
+</div>
+
+<!-- === f6 Molesto / Error === -->
+<div id="f6" class="face-container">
+<svg viewBox="0 0 500 300">
+<circle class="pupil" cx="150" cy="120" r="12"/>
+<circle class="pupil" cx="350" cy="120" r="12"/>
+<path class="face-element" d="M200,220 Q250,150 300,220"/>
+</svg>
+</div>
+
+<!-- === f8 Hablando === -->
+<div id="f8" class="face-container">
+<svg viewBox="0 0 500 300">
+<path d="M120,130 A35,35 0 0 1 190,130" stroke="var(--dark)" fill="none" stroke-width="10"/>
+<path d="M310,130 A35,35 0 0 1 380,130" stroke="var(--dark)" fill="none" stroke-width="10"/>
+<g transform="translate(250,200)">
+<path class="m-border" d="M-60,0 C-60,40 60,40 60,0"/>
+<path class="tongue" d="M-30,20 C-10,30 10,30 30,20"/>
+</g>
+</svg>
+</div>
+
+<!-- === f9 Dormido === -->
+<div id="f9" class="face-container">
+<div class="sleep-box">
+<div class="s-eye left"></div>
+<div class="s-eye right"></div>
+<div class="s-mouth"></div>
+<div class="z z-s">z</div>
+<div class="z z-l">Z</div>
+</div>
+</div>
+
+</div>
 
 <script>
-/* =====================
-   ELEMENTOS
-===================== */
-const body = document.getElementById("body");
-const statusBox = document.getElementById("status");
+/* ================================
+   CONTROL INTELIGENTE DE CARAS
+================================ */
 
-const eyeL = document.getElementById("eyeL");
-const eyeR = document.getElementById("eyeR");
-const mouthC = document.getElementById("mouthC");
+let current = null;
+let idleTimer = null;
+const IDLE_TIME = 15000; // 15 segundos
 
-/* =====================
-   WEBSOCKET
-===================== */
-/* ⚠️ CAMBIA localhost POR LA IP DE TU PC SI ABRES DESDE EL TELÉFONO */
-const WS_URL = "ws://localhost:8765";
-
-let ws;
-
-function connectWS() {
-    ws = new WebSocket(WS_URL);
-
-    ws.onopen = () => {
-        statusBox.textContent = "🟢 Conectado a BMO";
-    };
-
-    ws.onclose = () => {
-        statusBox.textContent = "🔴 Desconectado. Reintentando...";
-        setTimeout(connectWS, 2000);
-    };
-
-    ws.onerror = () => {
-        statusBox.textContent = "⚠️ Error de conexión";
-    };
-
-    ws.onmessage = e => {
-        handleMessage(e.data);
-    };
+function showFace(id, bg){
+    if(current) document.getElementById(current).classList.remove("active");
+    document.getElementById(id).classList.add("active");
+    document.body.style.background = bg;
+    current = id;
+    resetIdle();
 }
 
-connectWS();
-
-/* =====================
-   MENSAJES
-===================== */
-function handleMessage(msg) {
-
-    if (msg === "START_TALKING") {
-        body.classList.add("talking");
-        return;
-    }
-
-    if (msg === "STOP_TALKING") {
-        body.classList.remove("talking");
-        return;
-    }
-
-    if (msg.startsWith("DRAW:")) {
-        drawFace(msg.substring(5));
-    }
+function resetIdle(){
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(()=> {
+        showFace("f9","var(--sleep)");
+    }, IDLE_TIME);
 }
 
-/* =====================
-   DIBUJO
-===================== */
-function drawFace(data) {
+/* === CONTEXTO (para Python / WebSocket) === */
+window.BMO = {
+    listening:()=>showFace("f1","var(--bg)"),
+    thinking:()=>showFace("f3","var(--bg)"),
+    speaking:()=>showFace("f8","var(--bg)"),
+    surprised:()=>showFace("f2","var(--bg)"),
+    error:()=>showFace("f6","var(--bg)"),
+    sleep:()=>showFace("f9","var(--sleep)")
+};
 
-    if (data === "thinking") {
-        eyeL.setAttribute("d", "M50 65 Q60 55 70 65");
-        eyeR.setAttribute("d", "M130 65 Q140 55 150 65");
-        mouthC.setAttribute("d", "M80 110 Q100 120 120 110");
-        return;
-    }
-
-    // OjoL | OjoR | Boca | Color | Puntos | Cejas
-    const parts = data.split("|");
-    if (parts.length < 4) return;
-
-    eyeL.setAttribute("d", parts[0]);
-    eyeR.setAttribute("d", parts[1]);
-    mouthC.setAttribute("d", parts[2]);
-
-    document.body.style.background = parts[3];
-}
+/* INICIO */
+showFace("f3","var(--bg)");
 </script>
 
 </body>
