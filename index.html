@@ -77,7 +77,8 @@ const browL = document.getElementById("browL"), browR = document.getElementById(
 const mouthClosed = document.getElementById("mouthClosed");
 
 // --- LÓGICA DE RECEPCIÓN ---
-const socket = new WebSocket('ws://localhost:8765');
+// Usa la IP que muestra el programa (ej: 192.168.10.47)
+const socket = new WebSocket('ws://192.168.10.47:8765');
 
 socket.onopen = () => statusDiv.innerText = "Sincronizado";
 
