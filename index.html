@@ -47,12 +47,36 @@
         to { transform: scaleY(1.3); } 
     }
 
-    #status { position: absolute; top: 10px; font-size: 10px; color: #000; opacity: 0.3; text-transform: uppercase; letter-spacing: 1px; }
+    #status { 
+        position: absolute; 
+        top: 10px; 
+        font-size: 12px; 
+        color: #000; 
+        opacity: 0.5; 
+        text-transform: uppercase; 
+        letter-spacing: 1px; 
+        padding: 5px 10px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+    }
+    
+    #connection-status {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        font-size: 10px;
+        color: #000;
+        opacity: 0.3;
+    }
+    
+    .connected { color: green !important; opacity: 0.8 !important; }
+    .disconnected { color: red !important; }
 </style>
 </head>
 <body id="mainBody">
 
-<div id="status">Esperando al Cerebro...</div>
+<div id="status">Esperando conexión...</div>
+<div id="connection-status" class="disconnected">Desconectado</div>
 
 <svg id="faceSvg" class="face-svg" viewBox="0 0 200 150">
     <path id="browL" class="stroke-line" d="M45,40 L65,55" style="opacity:0" />
@@ -71,50 +95,141 @@
 <script>
 const body = document.getElementById("mainBody");
 const statusDiv = document.getElementById("status");
+const connStatus = document.getElementById("connection-status");
 const eyeL = document.getElementById("eyeL"), eyeR = document.getElementById("eyeR");
 const dotL = document.getElementById("dotL"), dotR = document.getElementById("dotR");
 const browL = document.getElementById("browL"), browR = document.getElementById("browR");
 const mouthClosed = document.getElementById("mouthClosed");
 
-// --- LÓGICA DE RECEPCIÓN ---
-// Usa la IP que muestra el programa (ej: 192.168.10.47)
-const socket = new WebSocket('ws://192.168.10.47:8765');
+// Estado de conexión
+let socket = null;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 10;
 
-socket.onopen = () => statusDiv.innerText = "Sincronizado";
-
-socket.onmessage = (event) => {
-    const data = event.data;
-
-    // Comando para dibujar: DRAW:ojoL|ojoR|boca|color|puntos(0 o 1)|cejas(0 o 1)
-    if (data.startsWith("DRAW:")) {
-        const parts = data.replace("DRAW:", "").split("|");
-        const [dEyeL, dEyeR, dMouth, bgColor, useDots, useBrows] = parts;
-
-        // Actualizar formas
-        eyeL.setAttribute('d', dEyeL);
-        eyeR.setAttribute('d', dEyeR);
-        mouthClosed.setAttribute('d', dMouth);
-        
-        // Actualizar colores
-        body.style.backgroundColor = bgColor;
-
-        // Mostrar u ocultar puntos/cejas (1 = visible, 0 = oculto)
-        dotL.style.opacity = useDots === "1" ? "1" : "0";
-        dotR.style.opacity = useDots === "1" ? "1" : "0";
-        eyeL.style.opacity = useDots === "1" ? "0" : "1";
-        eyeR.style.opacity = useDots === "1" ? "0" : "1";
-        
-        browL.style.opacity = useBrows === "1" ? "1" : "0";
-        browR.style.opacity = useBrows === "1" ? "1" : "0";
-    }
+function connectWebSocket() {
+    console.log("🔗 Intentando conectar a WebSocket...");
+    statusDiv.innerText = "Conectando...";
+    connStatus.className = "disconnected";
+    connStatus.textContent = "Conectando...";
     
-    // Comandos de habla
-    if (data === "START_TALKING") body.classList.add("talking");
-    if (data === "STOP_TALKING") body.classList.remove("talking");
+    // Usar localhost:8765 (el mismo que el servidor Python)
+    socket = new WebSocket('ws://localhost:8765');
+    
+    socket.onopen = function(event) {
+        console.log("✅ WebSocket conectado");
+        statusDiv.innerText = "Conectado a BMO";
+        connStatus.className = "connected";
+        connStatus.textContent = "Conectado";
+        reconnectAttempts = 0;
+    };
+    
+    socket.onmessage = function(event) {
+        const data = event.data;
+        console.log("📥 Recibido:", data);
+        
+        // Comando para dibujar: DRAW:ojoL|ojoR|boca|color|puntos(0 o 1)|cejas(0 o 1)
+        if (data.startsWith("DRAW:")) {
+            const parts = data.replace("DRAW:", "").split("|");
+            
+            if (parts.length === 6) {
+                const [dEyeL, dEyeR, dMouth, bgColor, useDots, useBrows] = parts;
+                
+                console.log("🎭 Aplicando expresión:", { dEyeL, dEyeR, dMouth, bgColor, useDots, useBrows });
+                
+                // Actualizar formas
+                eyeL.setAttribute('d', dEyeL);
+                eyeR.setAttribute('d', dEyeR);
+                mouthClosed.setAttribute('d', dMouth);
+                
+                // Actualizar colores
+                body.style.backgroundColor = bgColor;
+                
+                // Mostrar u ocultar puntos/cejas (1 = visible, 0 = oculto)
+                dotL.style.opacity = useDots === "1" ? "1" : "0";
+                dotR.style.opacity = useDots === "1" ? "1" : "0";
+                eyeL.style.opacity = useDots === "1" ? "0" : "1";
+                eyeR.style.opacity = useDots === "1" ? "0" : "1";
+                
+                browL.style.opacity = useBrows === "1" ? "1" : "0";
+                browR.style.opacity = useBrows === "1" ? "1" : "0";
+                
+                statusDiv.innerText = "Expresión actualizada";
+            } else {
+                console.error("❌ Formato incorrecto:", parts);
+                statusDiv.innerText = "Error en formato";
+            }
+        }
+        
+        // Comandos de habla
+        if (data === "START_TALKING") {
+            console.log("🗣️ BMO hablando...");
+            body.classList.add("talking");
+            statusDiv.innerText = "BMO hablando";
+        }
+        if (data === "STOP_TALKING") {
+            console.log("🤐 BMO dejó de hablar");
+            body.classList.remove("talking");
+            statusDiv.innerText = "Listo";
+        }
+        
+        if (data === "CONNECTED:BMO") {
+            console.log("🤖 Conectado al servidor BMO");
+            statusDiv.innerText = "Sincronizado con BMO";
+        }
+        
+        if (data === "SHUTDOWN") {
+            console.log("🔄 BMO se está apagando...");
+            statusDiv.innerText = "BMO apagándose";
+        }
+    };
+    
+    socket.onerror = function(error) {
+        console.error("❌ Error WebSocket:", error);
+        statusDiv.innerText = "Error de conexión";
+        connStatus.className = "disconnected";
+        connStatus.textContent = "Error";
+    };
+    
+    socket.onclose = function(event) {
+        console.log("🔌 WebSocket desconectado");
+        statusDiv.innerText = "Desconectado";
+        connStatus.className = "disconnected";
+        connStatus.textContent = "Desconectado";
+        
+        // Intentar reconectar
+        if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            console.log(`🔄 Intentando reconectar (${reconnectAttempts}/${maxReconnectAttempts})...`);
+            statusDiv.innerText = `Reconectando (${reconnectAttempts})...`;
+            
+            setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+        } else {
+            console.error("❌ Máximo de intentos de reconexión alcanzado");
+            statusDiv.innerText = "Conexión perdida";
+            connStatus.textContent = "Conexión perdida";
+        }
+    };
+}
+
+// Iniciar conexión cuando se carga la página
+window.onload = function() {
+    console.log("🌐 Página cargada, iniciando conexión...");
+    connectWebSocket();
+    
+    // También reconectar si hay problemas de visibilidad
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && (!socket || socket.readyState === WebSocket.CLOSED)) {
+            console.log("👀 Página visible, reconectando...");
+            connectWebSocket();
+        }
+    });
 };
 
-socket.onclose = () => statusDiv.innerText = "Cerebro Desconectado";
+// Manejar errores globales
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error("🚨 Error global:", msg, error);
+    return false;
+};
 </script>
 </body>
-       </html>
-       
+</html>
