@@ -3,144 +3,156 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BMO - Interfaz de Expresiones</title>
+<title>BMO Web</title>
+
 <style>
-    /* Estética de la pantalla de BMO */
-    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
-    body { 
-        background-color: #66E0D4; 
-        height: 100vh; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        overflow: hidden; 
-        transition: background-color 0.5s ease; 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    
-    .face-svg { width: 85vw; max-width: 500px; height: auto; }
-    
-    /* Líneas suaves para las expresiones */
-    .stroke-line { 
-        fill: none; 
-        stroke: #1a1a1a; 
-        stroke-width: 6; 
-        stroke-linecap: round; 
-        transition: d 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s; 
-    }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+}
 
-    .eye-dot { fill: #1a1a1a; opacity: 0; transition: opacity 0.3s; }
-    
-    /* Animación de la boca al hablar */
-    .mouth-open { 
-        fill: #1a1a1a; 
-        opacity: 0; 
-        transform-origin: center; 
-    }
+body {
+    background: #66E0D4;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.3s;
+    font-family: sans-serif;
+}
 
-    .talking .mouth-open { opacity: 1; animation: talk 0.15s infinite alternate; }
-    .talking .mouth-closed { opacity: 0; }
+#status {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 14px;
+    background: rgba(0,0,0,0.4);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
 
-    @keyframes talk { 
-        from { transform: scaleY(0.6) translateY(5px); } 
-        to { transform: scaleY(1.2) translateY(-5px); } 
-    }
+.face {
+    width: 300px;
+}
 
-    /* Indicadores de estado */
-    #status { 
-        position: absolute; 
-        top: 20px; 
-        font-size: 14px; 
-        color: rgba(0,0,0,0.4); 
-        text-transform: uppercase; 
-        letter-spacing: 2px;
-    }
+.line {
+    fill: none;
+    stroke: #111;
+    stroke-width: 4;
+    stroke-linecap: round;
+}
+
+.mouth-open {
+    fill: #2d9188;
+    stroke: #111;
+    stroke-width: 3;
+    opacity: 0;
+}
+
+.talking .mouth-open { opacity: 1; }
+.talking .mouth-closed { opacity: 0; }
 </style>
 </head>
-<body id="mainBody">
 
-<div id="status">Esperando a BMO...</div>
+<body id="body">
 
-<svg id="faceSvg" class="face-svg" viewBox="0 0 200 150">
-    <path id="browL" class="stroke-line" d="M45,40 L65,55" style="opacity:0" />
-    <path id="browR" class="stroke-line" d="M155,40 L135,55" style="opacity:0" />
+<div id="status">Conectando...</div>
 
-    <path id="eyeL" class="stroke-line" d="M50,65 Q60,55 70,65" />
-    <path id="eyeR" class="stroke-line" d="M130,65 Q140,55 150,65" />
-
-    <circle id="dotL" class="eye-dot" cx="60" cy="70" r="7" />
-    <circle id="dotR" class="eye-dot" cx="140" cy="70" r="7" />
-
-    <path id="mouthClosed" class="stroke-line mouth-closed" d="M75,105 Q100,115 125,105" />
-    <ellipse id="mouthOpen" class="mouth-open" cx="100" cy="110" rx="15" ry="12" />
+<svg id="face" class="face" viewBox="0 0 200 150">
+    <path id="eyeL" class="line" />
+    <path id="eyeR" class="line" />
+    <path id="mouthC" class="line mouth-closed" />
+    <ellipse id="mouthO" class="mouth-open" cx="100" cy="100" rx="25" ry="20"/>
 </svg>
 
 <script>
-const body = document.getElementById("mainBody");
-const statusDiv = document.getElementById("status");
-const eyeL = document.getElementById("eyeL"), eyeR = document.getElementById("eyeR");
-const dotL = document.getElementById("dotL"), dotR = document.getElementById("dotR");
-const browL = document.getElementById("browL"), browR = document.getElementById("browR");
-const mouthClosed = document.getElementById("mouthClosed");
+/* =====================
+   ELEMENTOS
+===================== */
+const body = document.getElementById("body");
+const statusBox = document.getElementById("status");
 
-let socket = null;
+const eyeL = document.getElementById("eyeL");
+const eyeR = document.getElementById("eyeR");
+const mouthC = document.getElementById("mouthC");
 
-function connect() {
-    socket = new WebSocket('ws://localhost:8765');
-    
-    socket.onopen = () => {
-        statusDiv.innerText = "BMO Conectado";
-        console.log("Conectado");
+/* =====================
+   WEBSOCKET
+===================== */
+/* ⚠️ CAMBIA localhost POR LA IP DE TU PC SI ABRES DESDE EL TELÉFONO */
+const WS_URL = "ws://localhost:8765";
+
+let ws;
+
+function connectWS() {
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+        statusBox.textContent = "🟢 Conectado a BMO";
     };
-    
-    socket.onmessage = (event) => {
-        const data = event.data;
-        
-        if (data.startsWith("DRAW:")) {
-            const parts = data.replace("DRAW:", "").split("|");
-            
-            if (parts.length === 6) {
-                const [dEyeL, dEyeR, dMouth, bgColor, useDots, useBrows] = parts;
-                
-                // Actualizar trazados (paths)
-                eyeL.setAttribute('d', dEyeL);
-                eyeR.setAttribute('d', dEyeR);
-                mouthClosed.setAttribute('d', dMouth);
-                
-                // Color de fondo
-                body.style.backgroundColor = bgColor;
-                
-                // Lógica de Puntos vs Líneas (para la expresión ASOMBRO)
-                if (useDots === "1") {
-                    dotL.style.opacity = "1";
-                    dotR.style.opacity = "1";
-                    eyeL.style.opacity = "0";
-                    eyeR.style.opacity = "0";
-                } else {
-                    dotL.style.opacity = "0";
-                    dotR.style.opacity = "0";
-                    eyeL.style.opacity = "1";
-                    eyeR.style.opacity = "1";
-                }
-                
-                // Lógica de Cejas (para PENSANDO o ENOJADO)
-                browL.style.opacity = useBrows === "1" ? "1" : "0";
-                browR.style.opacity = useBrows === "1" ? "1" : "0";
-            }
-        }
-        
-        if (data === "START_TALKING") body.classList.add("talking");
-        if (data === "STOP_TALKING") body.classList.remove("talking");
-        if (data === "SHUTDOWN") statusDiv.innerText = "BMO APAGADO";
+
+    ws.onclose = () => {
+        statusBox.textContent = "🔴 Desconectado. Reintentando...";
+        setTimeout(connectWS, 2000);
     };
-    
-    socket.onclose = () => {
-        statusDiv.innerText = "Reconectando...";
-        setTimeout(connect, 2000);
+
+    ws.onerror = () => {
+        statusBox.textContent = "⚠️ Error de conexión";
+    };
+
+    ws.onmessage = e => {
+        handleMessage(e.data);
     };
 }
 
-connect();
+connectWS();
+
+/* =====================
+   MENSAJES
+===================== */
+function handleMessage(msg) {
+
+    if (msg === "START_TALKING") {
+        body.classList.add("talking");
+        return;
+    }
+
+    if (msg === "STOP_TALKING") {
+        body.classList.remove("talking");
+        return;
+    }
+
+    if (msg.startsWith("DRAW:")) {
+        drawFace(msg.substring(5));
+    }
+}
+
+/* =====================
+   DIBUJO
+===================== */
+function drawFace(data) {
+
+    if (data === "thinking") {
+        eyeL.setAttribute("d", "M50 65 Q60 55 70 65");
+        eyeR.setAttribute("d", "M130 65 Q140 55 150 65");
+        mouthC.setAttribute("d", "M80 110 Q100 120 120 110");
+        return;
+    }
+
+    // OjoL | OjoR | Boca | Color | Puntos | Cejas
+    const parts = data.split("|");
+    if (parts.length < 4) return;
+
+    eyeL.setAttribute("d", parts[0]);
+    eyeR.setAttribute("d", parts[1]);
+    mouthC.setAttribute("d", parts[2]);
+
+    document.body.style.background = parts[3];
+}
 </script>
+
 </body>
 </html>
