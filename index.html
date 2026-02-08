@@ -167,41 +167,60 @@ svg{width:100%;height:100%}
 </div>
 
 <script>
-/* ================================
-   CONTROL INTELIGENTE DE CARAS
-================================ */
+let ws;
+let idleTimer;
+const IDLE_TIME = 15000;
 
-let current = null;
-let idleTimer = null;
-const IDLE_TIME = 15000; // 15 segundos
+function connectWS(){
+    ws = new WebSocket("ws://localhost:8765");
 
-function showFace(id, bg){
-    if(current) document.getElementById(current).classList.remove("active");
-    document.getElementById(id).classList.add("active");
-    document.body.style.background = bg;
-    current = id;
-    resetIdle();
+    ws.onopen = () => {
+        console.log("🟢 BMO conectado");
+        BMO.listening();
+    };
+
+    ws.onmessage = e => {
+        resetIdle();
+        const data = JSON.parse(e.data);
+
+        if(data.state === "thinking") BMO.thinking();
+        if(data.state === "speaking"){
+            BMO.speaking();
+            speak(data.text);
+        }
+        if(data.state === "error") BMO.error();
+    };
+
+    ws.onclose = () => {
+        console.log("🔴 WS cerrado, reintentando...");
+        setTimeout(connectWS,2000);
+    };
+}
+
+function sendText(text){
+    ws.send(JSON.stringify({
+        type:"user",
+        text:text
+    }));
 }
 
 function resetIdle(){
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(()=> {
-        showFace("f9","var(--sleep)");
-    }, IDLE_TIME);
+    idleTimer = setTimeout(()=>{
+        BMO.sleep();
+    },IDLE_TIME);
 }
 
-/* === CONTEXTO (para Python / WebSocket) === */
-window.BMO = {
-    listening:()=>showFace("f1","var(--bg)"),
-    thinking:()=>showFace("f3","var(--bg)"),
-    speaking:()=>showFace("f8","var(--bg)"),
-    surprised:()=>showFace("f2","var(--bg)"),
-    error:()=>showFace("f6","var(--bg)"),
-    sleep:()=>showFace("f9","var(--sleep)")
-};
+/* ===== VOZ ===== */
+function speak(text){
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "es-MX";
+    u.onstart = ()=>BMO.speaking();
+    u.onend = ()=>BMO.listening();
+    speechSynthesis.speak(u);
+}
 
-/* INICIO */
-showFace("f3","var(--bg)");
+connectWS();
 </script>
 
 </body>
