@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMO — Neural Bridge</title>
+<script src="https://js.puter.com/v2/"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg:       #050810;
+    --surface:  #0a0f1e;
+    --border:   #1a2340;
+    --accent:   #00e5ff;
+    --accent2:  #7c3aed;
+    --green:    #00ff88;
+    --red:      #ff3366;
+    --yellow:   #ffd93d;
+    --text:     #c8d6f0;
+    --dim:      #4a5568;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid de fondo animado */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
+    pointer-events: none;
+    animation: gridShift 20s linear infinite;
+  }
+  @keyframes gridShift {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(40px); }
+  }
+
+  /* Orbe de luz superior */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 400px;
+    background: radial-gradient(ellipse, rgba(0,229,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -1px;
+    color: #fff;
+  }
+  .logo span { color: var(--accent); }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--dim);
+    margin-left: auto;
+    transition: all 0.3s;
+    box-shadow: none;
+  }
+  .status-dot.online {
+    background: var(--green);
+    box-shadow: 0 0 12px var(--green);
+    animation: pulse 2s infinite;
+  }
+  .status-dot.processing {
+    background: var(--yellow);
+    box-shadow: 0 0 12px var(--yellow);
+    animation: pulse 0.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+
+  .status-label {
+    font-size: 11px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  /* Grid principal */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: rgba(0,229,255,0.3); }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .card:hover::before { opacity: 0.5; }
+
+  .card.full-width { grid-column: 1 / -1; }
+
+  .card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Terminal de logs */
+  .terminal {
+    background: #020408;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 11px;
+    line-height: 1.7;
+    height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .terminal::-webkit-scrollbar { width: 4px; }
+  .terminal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-line { display: flex; gap: 10px; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateX(-4px); } }
+  .log-time { color: var(--dim); flex-shrink: 0; }
+  .log-info    { color: var(--accent); }
+  .log-success { color: var(--green); }
+  .log-warn    { color: var(--yellow); }
+  .log-error   { color: var(--red); }
+
+  /* Análisis de Claude */
+  .analysis-output {
+    background: #020408;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 12px;
+    line-height: 1.8;
+    min-height: 180px;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .analysis-output::-webkit-scrollbar { width: 4px; }
+  .analysis-output::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* Métricas */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .metric {
+    background: #020408;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .metric-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+  }
+  .metric-name {
+    font-size: 10px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 4px;
+    display: block;
+  }
+
+  /* Botones */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,0.05);
+  }
+  .btn.primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,0.08);
+  }
+  .btn.primary:hover {
+    background: rgba(0,229,255,0.15);
+    box-shadow: 0 0 20px rgba(0,229,255,0.15);
+  }
+  .btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Badge de tarea activa */
+  .task-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid;
+  }
+  .task-badge.bug     { color: var(--red);    border-color: var(--red);    background: rgba(255,51,102,0.08); }
+  .task-badge.arch    { color: var(--accent2); border-color: var(--accent2); background: rgba(124,58,237,0.08); }
+  .task-badge.module  { color: var(--green);  border-color: var(--green);  background: rgba(0,255,136,0.08); }
+  .task-badge.log     { color: var(--yellow); border-color: var(--yellow); background: rgba(255,217,61,0.08); }
+  .task-badge.repair  { color: var(--accent); border-color: var(--accent); background: rgba(0,229,255,0.08); }
+
+  .badges-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  /* Instrucción pendiente */
+  .instruction-box {
+    background: rgba(0,255,136,0.03);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 12px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    display: none;
+    animation: fadeIn 0.4s ease;
+  }
+  .instruction-box.visible { display: block; }
+
+  /* Spinner de carga */
+  .spinner {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Countdown */
+  .countdown {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 10px;
+  }
+  .countdown span { color: var(--accent); }
+
+  /* Footer */
+  footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--dim);
+    display: flex;
+    justify-content: space-between;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div>
+      <div class="logo">BMO <span>Neural Bridge</span></div>
+      <div style="font-size:11px; color:var(--dim); margin-top:4px;">Claude · Análisis autónomo del proyecto</div>
+    </div>
+    <div id="statusLabel" class="status-label">Offline</div>
+    <div id="statusDot" class="status-dot"></div>
+  </header>
+
+  <div class="grid">
+
+    <!-- Métricas -->
+    <div class="card full-width">
+      <div class="card-label">Estado del sistema</div>
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-val" id="metCycles">0</span>
+          <span class="metric-name">Ciclos</span>
+        </div>
+        <div class="metric">
+          <span class="metric-val" id="metBugs">—</span>
+          <span class="metric-name">Bugs detectados</span>
+        </div>
+        <div class="metric">
+          <span class="metric-val" id="metModules">—</span>
+          <span class="metric-name">Módulos analizados</span>
+        </div>
+      </div>
+      <div class="countdown">Próximo ciclo en <span id="countdownVal">—</span></div>
+    </div>
+
+    <!-- Terminal de actividad -->
+    <div class="card">
+      <div class="card-label">Actividad</div>
+      <div class="terminal" id="terminal">
+        <div class="log-line">
+          <span class="log-time">00:00:00</span>
+          <span class="log-info">BMO Neural Bridge iniciado. Esperando payload...</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnRun" onclick="runCycle()">
+          ▶ Ejecutar ciclo
+        </button>
+        <button class="btn" onclick="clearTerminal()">⌫ Limpiar</button>
+      </div>
+    </div>
+
+    <!-- Análisis de Claude -->
+    <div class="card">
+      <div class="card-label">Análisis Claude</div>
+      <div class="badges-row" id="taskBadges">
+        <span class="task-badge bug">🔴 Bugs</span>
+        <span class="task-badge arch">🟣 Arquitectura</span>
+        <span class="task-badge module">🟢 Módulos</span>
+        <span class="task-badge log">🟡 Logs</span>
+        <span class="task-badge repair">🔵 Reparación</span>
+      </div>
+      <div class="analysis-output" id="analysisOutput">Esperando análisis...</div>
+    </div>
+
+    <!-- Instrucción para BMO -->
+    <div class="card full-width">
+      <div class="card-label">Instrucción para BMO</div>
+      <div id="instructionBox" class="instruction-box">
+        — Sin instrucciones pendientes —
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btnCopy" onclick="copyInstruction()" disabled>📋 Copiar instrucción</button>
+        <button class="btn" id="btnDownload" onclick="downloadInstruction()" disabled>⬇ Descargar .json</button>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <span>BMO v1.0 — Raspberry Pi 4</span>
+    <span id="lastUpdate">Última actualización: —</span>
+  </footer>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// CONFIGURACIÓN
+// ─────────────────────────────────────────────────────────────
+const CONFIG = {
+  // URL del JSON que BMO sube a GitHub Gist (se configura después)
+  GIST_URL: localStorage.getItem('bmo_gist_url') || '',
+  POLL_INTERVAL: 5 * 60 * 1000, // 5 minutos
+  MODEL: 'claude-sonnet-4-6'
+};
+
+// ─────────────────────────────────────────────────────────────
+// CONTEXTO DEL PROYECTO BMO (Claude lo tiene siempre presente)
+// ─────────────────────────────────────────────────────────────
+const PROJECT_CONTEXT = `
+PROYECTO: BMO — Bot de WhatsApp autónomo multi-agente
+STACK: Node.js ESM + whatsapp-web.js + Gemini + Mistral + Ollama (Raspberry Pi 4 ARM64)
+ARCHIVO PRINCIPAL: /home/ruben/wa-ollama/index.js (~3500 líneas)
+MÓDULOS: orquestador.js, fallback_ia.js, motor_evoluciones.js, memoria.js,
+         personalidad.js, autoevaluador.js, planificador.js, contexto_bmo.js,
+         sandbox/laboratorio.js, intent_parser.js, agente_corrector.js,
+         resolver_referencia.js, voluntad.js
+
+ARQUITECTURA CLAVE:
+- Capa Determinista: operaciones de filesystem NUNCA pasan por Gemini
+  (listar carpetas, enviar archivos, borrar duplicados, backups)
+- SessionManager: mantiene tema activo por usuario (10min TTL)
+- flujoArchivo Map: máquina de estado para recibir archivos
+- pendienteConfirmacion Map: acciones destructivas esperan sí/no
+- contextoListas Map: último listado real del filesystem por usuario
+- Orquestador cognitivo: Gemini+Mistral+Ollama debaten respuestas complejas
+
+REGLAS CRÍTICAS DE ARQUITECTURA:
+1. stdout de comandos del sistema se muestra DIRECTO, nunca pasa por Gemini si <800 chars
+2. Gemini SOLO interpreta intención, nunca ejecuta lógica de filesystem
+3. Acciones destructivas SIEMPRE requieren confirmación explícita sí/no
+4. API keys en .env, nunca hardcodeadas
+5. Rutas absolutas siempre (/home/ruben/wa-ollama/...), nunca relativas
+
+PROBLEMAS RECURRENTES CONOCIDOS:
+- Motor auto-aprendizaje genera módulos con errores de sintaxis
+- Gemini puede inventar resultados cuando no hay stdout real
+- Módulos auto-generados no validan antes de confirmar éxito
+- contextoListas debe poblarse solo desde fs.readdirSync(), nunca desde IA
+
+TU ROL: Eres el cerebro externo de BMO. Analizas su código, logs y estado
+para detectar bugs, sugerir mejoras y generar código de reparación.
+Siempre respondes en español. Siempre usas el contexto del proyecto.
+Nunca inventas datos. Si no tienes suficiente información, lo dices.
+`;
+
+// ─────────────────────────────────────────────────────────────
+// ESTADO INTERNO
+// ─────────────────────────────────────────────────────────────
+let cycles = 0;
+let lastInstruction = null;
+let countdownTimer = null;
+let nextCycleAt = null;
+
+// ─────────────────────────────────────────────────────────────
+// TERMINAL
+// ─────────────────────────────────────────────────────────────
+function log(msg, type = 'info') {
+  const t = new Date().toTimeString().slice(0, 8);
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${t}</span><span class="log-${type}">${msg}</span>`;
+  const term = document.getElementById('terminal');
+  term.appendChild(line);
+  term.scrollTop = term.scrollHeight;
+}
+
+function clearTerminal() {
+  document.getElementById('terminal').innerHTML = '';
+  log('Terminal limpiada.', 'info');
+}
+
+// ─────────────────────────────────────────────────────────────
+// ESTADO UI
+// ─────────────────────────────────────────────────────────────
+function setStatus(state) {
+  const dot = document.getElementById('statusDot');
+  const label = document.getElementById('statusLabel');
+  dot.className = 'status-dot ' + state;
+  label.textContent = state === 'online' ? 'Online' : state === 'processing' ? 'Procesando...' : 'Offline';
+}
+
+function setAnalysis(text) {
+  document.getElementById('analysisOutput').textContent = text;
+}
+
+function setInstruction(json) {
+  const box = document.getElementById('instructionBox');
+  box.textContent = JSON.stringify(json, null, 2);
+  box.classList.add('visible');
+  document.getElementById('btnCopy').disabled = false;
+  document.getElementById('btnDownload').disabled = false;
+  lastInstruction = json;
+}
+
+function updateMetrics(bugs, modules) {
+  document.getElementById('metCycles').textContent = cycles;
+  if (bugs !== undefined) document.getElementById('metBugs').textContent = bugs;
+  if (modules !== undefined) document.getElementById('metModules').textContent = modules;
+}
+
+// ─────────────────────────────────────────────────────────────
+// COUNTDOWN
+// ─────────────────────────────────────────────────────────────
+function startCountdown(ms) {
+  if (countdownTimer) clearInterval(countdownTimer);
+  nextCycleAt = Date.now() + ms;
+  countdownTimer = setInterval(() => {
+    const remaining = Math.max(0, nextCycleAt - Date.now());
+    const m = Math.floor(remaining / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    document.getElementById('countdownVal').textContent =
+      `${m}:${s.toString().padStart(2, '0')}`;
+    if (remaining === 0) {
+      clearInterval(countdownTimer);
+      runCycle();
+    }
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────────────────────
+// OBTENER PAYLOAD DESDE GITHUB GIST
+// ─────────────────────────────────────────────────────────────
+async function fetchPayload() {
+  if (!CONFIG.GIST_URL) {
+    // Modo demo: payload simulado para probar sin Pi conectada
+    return generateDemoPayload();
+  }
+  try {
+    const r = await fetch(CONFIG.GIST_URL + '?t=' + Date.now());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch(e) {
+    log('No se pudo obtener payload de GitHub: ' + e.message, 'warn');
+    return generateDemoPayload();
+  }
+}
+
+function generateDemoPayload() {
+  return {
+    timestamp: new Date().toISOString(),
+    version: 'demo',
+    logs: [
+      'Feb 27 23:33:04 ruben node[28915]: Tokens esta consulta: 1245 | Total hoy: 1245',
+      'Feb 27 23:33:04 ruben node[28915]: Respuesta Gemini raw: {"accion": "comando", "cmd": "bluetoothctl scan on"}',
+      'Feb 27 23:33:04 ruben node[28915]: Ejecutando directo: bluetoothctl scan on',
+      'Feb 27 23:33:04 ruben node[28915]: OK: SetDiscoveryFilter success'
+    ],
+    errores: [],
+    modulos: [],
+    stats: { tokensHoy: 1245, uptime: '2h 30m', mensajes: 47 },
+    moduloRoto: null,
+    codigoSnippet: null
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// ANÁLISIS CON CLAUDE VIA PUTER.JS
+// ─────────────────────────────────────────────────────────────
+async function analyzeWithClaude(payload) {
+  const logsStr = (payload.logs || []).slice(-20).join('\n');
+  const erroresStr = (payload.errores || []).join('\n') || 'ninguno';
+  const modulosStr = (payload.modulos || []).join(', ') || 'ninguno';
+  const moduloRoto = payload.moduloRoto || null;
+  const snippetExtra = payload.codigoSnippet
+    ? `\nCÓDIGO CON PROBLEMA REPORTADO POR USUARIO:\n${payload.codigoSnippet}`
+    : '';
+
+  const prompt = `${PROJECT_CONTEXT}
+
+─── PAYLOAD DEL SISTEMA (${payload.timestamp}) ───
+
+LOGS RECIENTES:
+${logsStr}
+
+ERRORES DETECTADOS:
+${erroresStr}
+
+MÓDULOS CARGADOS: ${modulosStr}
+STATS: tokens hoy=${payload.stats?.tokensHoy || '?'} | uptime=${payload.stats?.uptime || '?'} | mensajes=${payload.stats?.mensajes || '?'}
+${moduloRoto ? `\nMÓDULO REPORTADO COMO ROTO POR USUARIO: ${moduloRoto}` : ''}
+${snippetExtra}
+
+─── TU TAREA ───
+
+Analiza el estado del sistema y responde con un JSON estructurado exactamente así:
+{
+  "resumen": "1-2 oraciones sobre el estado general",
+  "bugs": [
+    { "severidad": "alta|media|baja", "descripcion": "...", "linea": "aprox o null", "fix": "cómo resolverlo" }
+  ],
+  "mejoras": [
+    { "tipo": "arquitectura|rendimiento|seguridad|ux", "descripcion": "...", "impacto": "alto|medio|bajo" }
+  ],
+  "instruccion": {
+    "tipo": "fix|modulo_nuevo|optimizacion|ninguna",
+    "descripcion": "qué hacer",
+    "codigo": "código Node.js listo para aplicar, o null si no aplica",
+    "archivo": "nombre del archivo donde aplicar, o null",
+    "prioridad": "inmediata|proxima_sesion|opcional"
+  },
+  "diagnostico_logs": "análisis de los logs en 2-3 oraciones",
+  "saludSistema": "critico|degradado|estable|optimo"
+}
+
+Responde SOLO con el JSON, sin texto adicional, sin markdown.`;
+
+  const response = await puter.ai.chat(prompt, { model: CONFIG.MODEL });
+  const raw = response.message.content[0].text.trim();
+
+  // Parsear JSON limpiando posibles backticks
+  const clean = raw.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+  return JSON.parse(clean);
+}
+
+// ─────────────────────────────────────────────────────────────
+// CICLO PRINCIPAL
+// ─────────────────────────────────────────────────────────────
+async function runCycle() {
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analizando...';
+  setStatus('processing');
+  cycles++;
+  updateMetrics(undefined, undefined);
+
+  try {
+    // 1. Obtener payload
+    log('Obteniendo estado de BMO...', 'info');
+    const payload = await fetchPayload();
+    log(`Payload recibido: ${payload.logs?.length || 0} logs, ${payload.errores?.length || 0} errores`, 'success');
+
+    // 2. Analizar con Claude
+    log('Enviando a Claude para análisis...', 'info');
+    setAnalysis('⏳ Analizando...');
+    const analysis = await analyzeWithClaude(payload);
+
+    // 3. Mostrar resultados
+    const salud = { critico: '🔴', degradado: '🟡', estable: '🟢', optimo: '✨' };
+    const saludIcon = salud[analysis.saludSistema] || '⚪';
+
+    let displayText = `${saludIcon} ${analysis.saludSistema?.toUpperCase()} — ${analysis.resumen}\n\n`;
+
+    if (analysis.bugs?.length > 0) {
+      displayText += `🐛 BUGS (${analysis.bugs.length}):\n`;
+      analysis.bugs.forEach((b, i) => {
+        displayText += `  ${i+1}. [${b.severidad?.toUpperCase()}] ${b.descripcion}\n     Fix: ${b.fix}\n`;
+      });
+      displayText += '\n';
+    }
+
+    if (analysis.mejoras?.length > 0) {
+      displayText += `💡 MEJORAS SUGERIDAS:\n`;
+      analysis.mejoras.forEach((m, i) => {
+        displayText += `  ${i+1}. [${m.tipo}] ${m.descripcion} (impacto: ${m.impacto})\n`;
+      });
+      displayText += '\n';
+    }
+
+    displayText += `📋 DIAGNÓSTICO LOGS:\n${analysis.diagnostico_logs}`;
+
+    setAnalysis(displayText);
+    updateMetrics(analysis.bugs?.length || 0, payload.modulos?.length || '—');
+
+    // 4. Instrucción para BMO
+    if (analysis.instruccion?.tipo !== 'ninguna') {
+      log(`Instrucción generada: ${analysis.instruccion.tipo} — prioridad ${analysis.instruccion.prioridad}`, 'success');
+      setInstruction(analysis.instruccion);
+    } else {
+      log('Sin instrucciones pendientes para este ciclo.', 'info');
+    }
+
+    // 5. Log de estado
+    log(`Análisis completado — Sistema: ${analysis.saludSistema}`, analysis.saludSistema === 'critico' ? 'error' : 'success');
+    document.getElementById('lastUpdate').textContent = 'Última actualización: ' + new Date().toLocaleTimeString('es-MX');
+
+    setStatus('online');
+
+  } catch(e) {
+    log('Error en ciclo: ' + e.message, 'error');
+    setAnalysis('Error al analizar: ' + e.message);
+    setStatus('offline');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '▶ Ejecutar ciclo';
+  startCountdown(CONFIG.POLL_INTERVAL);
+}
+
+// ─────────────────────────────────────────────────────────────
+// ACCIONES
+// ─────────────────────────────────────────────────────────────
+function copyInstruction() {
+  if (!lastInstruction) return;
+  navigator.clipboard.writeText(JSON.stringify(lastInstruction, null, 2));
+  log('Instrucción copiada al clipboard.', 'success');
+}
+
+function downloadInstruction() {
+  if (!lastInstruction) return;
+  const blob = new Blob([JSON.stringify(lastInstruction, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bmo_instruccion_${Date.now()}.json`;
+  a.click();
+  log('Instrucción descargada.', 'success');
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONFIGURACIÓN GIST URL
+// ─────────────────────────────────────────────────────────────
+// Puedes configurar la URL del Gist desde la consola del navegador:
+// setBmoGist('https://gist.githubusercontent.com/usuario/id/raw/bmo_status.json')
+window.setBmoGist = function(url) {
+  CONFIG.GIST_URL = url;
+  localStorage.setItem('bmo_gist_url', url);
+  log('Gist URL configurada: ' + url, 'success');
+};
+
+// ─────────────────────────────────────────────────────────────
+// INICIO
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  setStatus('online');
+  log('Sistema listo. Puter.js cargado.', 'success');
+  if (CONFIG.GIST_URL) {
+    log('Gist URL configurada. Iniciando ciclo automático.', 'info');
+    runCycle();
+  } else {
+    log('Sin Gist URL. Usa el botón "Ejecutar ciclo" para demo, o configura:', 'warn');
+    log('setBmoGist("https://gist.githubusercontent.com/.../bmo_status.json")', 'info');
+  }
+});
+</script>
+</body>
+</html>
