@@ -935,12 +935,12 @@ async function enviarManual() {
 
 function toggleConfig() {
   const modal = document.getElementById('keysModal');
-  modal.style.display = 'flex';
+  modal.style.visibility = 'visible';
   document.getElementById('modalMistral').value = localStorage.getItem('bmo_mistral_key') || '';
   document.getElementById('modalGrok').value = localStorage.getItem('bmo_grok_key') || '';
 }
 function cerrarModal() {
-  document.getElementById('keysModal').style.display = 'none';
+  document.getElementById('keysModal').style.visibility = 'hidden';
 }
 function guardarKeysModal() {
   const mistral = document.getElementById('modalMistral').value.trim();
@@ -1021,7 +1021,7 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<div id="keysModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;">
+<div id="keysModal" style="display:flex;visibility:hidden;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:#0a0f1e;border:1px solid #00e5ff;border-radius:16px;padding:28px;width:90%;max-width:420px;font-family:'JetBrains Mono',monospace;">
     <div style="font-size:14px;color:#00e5ff;font-weight:700;margin-bottom:20px;text-transform:uppercase;letter-spacing:2px;">⚙ API Keys</div>
     <div style="margin-bottom:16px;">
