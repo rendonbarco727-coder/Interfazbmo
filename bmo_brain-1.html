@@ -467,9 +467,9 @@
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // CONFIGURACIÓN
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 const CONFIG = {
   GIST_URL: 'https://gist.githubusercontent.com/rendonbarco727-coder/af6bf93648a54d971c89fe0ae8d37d46/raw/bmo_status.json',
   POLL_INTERVAL: 60 * 1000,
@@ -494,11 +494,11 @@ const CONFIG = {
   ]
 };
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // CONTEXTO DEL PROYECTO BMO (Claude lo tiene siempre presente)
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 const PROJECT_CONTEXT = `
-PROYECTO: BMO — Bot de WhatsApp autónomo multi-agente
+PROYECTO: BMO -- Bot de WhatsApp autónomo multi-agente
 STACK: Node.js ESM + whatsapp-web.js + Gemini + Mistral + Ollama (Raspberry Pi 4 ARM64)
 ARCHIVO PRINCIPAL: /home/ruben/wa-ollama/index.js (~3500 líneas)
 MÓDULOS: orquestador.js, fallback_ia.js, motor_evoluciones.js, memoria.js,
@@ -534,18 +534,18 @@ Siempre respondes en español. Siempre usas el contexto del proyecto.
 Nunca inventas datos. Si no tienes suficiente información, lo dices.
 `;
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // ESTADO INTERNO
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 let cycles = 0;
 let lastInstruction = null;
 let countdownTimer = null;
 let nextCycleAt = null;
 let lastPayloadHash = null;
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // TERMINAL
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 function log(msg, type = 'info') {
   const t = new Date().toTimeString().slice(0, 8);
   const line = document.createElement('div');
@@ -561,9 +561,9 @@ function clearTerminal() {
   log('Terminal limpiada.', 'info');
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // ESTADO UI
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 function setStatus(state) {
   const dot = document.getElementById('statusDot');
   const label = document.getElementById('statusLabel');
@@ -590,9 +590,9 @@ function updateMetrics(bugs, modules) {
   if (modules !== undefined) document.getElementById('metModules').textContent = modules;
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // COUNTDOWN
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 function startCountdown(ms) {
   if (countdownTimer) clearInterval(countdownTimer);
   nextCycleAt = Date.now() + ms;
@@ -609,20 +609,25 @@ function startCountdown(ms) {
   }, 1000);
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // OBTENER PAYLOAD DESDE GITHUB GIST
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 async function fetchPayload() {
-  if (!CONFIG.GIST_URL) {
-    // Modo demo: payload simulado para probar sin Pi conectada
-    return generateDemoPayload();
-  }
+  // Usar API de GitHub (soporta CORS desde GitHub Pages)
   try {
-    const r = await fetch(CONFIG.GIST_URL + '?t=' + Date.now());
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
+    const gistId = 'af6bf93648a54d971c89fe0ae8d37d46';
+    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!r.ok) throw new Error('GitHub API HTTP ' + r.status);
+    const gist = await r.json();
+    const content = gist.files?.['bmo_status.json']?.content;
+    if (!content) throw new Error('bmo_status.json no encontrado en Gist');
+    const parsed = JSON.parse(content);
+    if (parsed.timestamp) return parsed;
+    throw new Error('Payload sin timestamp, parece vacío');
   } catch(e) {
-    log('No se pudo obtener payload de GitHub: ' + e.message, 'warn');
+    log('No se pudo obtener payload real: ' + e.message + ' -- usando demo', 'warn');
     return generateDemoPayload();
   }
 }
@@ -645,9 +650,9 @@ function generateDemoPayload() {
   };
 }
 
-// ─────────────────────────────────────────────────────────────
-// ANÁLISIS CON IA — FALLBACK AUTOMÁTICO (Mistral → Grok)
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
+// ANÁLISIS CON IA -- FALLBACK AUTOMÁTICO (Mistral -> Grok)
+// -------------------------------------------------------------
 async function callProvider(provider, prompt) {
   const body = {
     model: provider.model,
@@ -686,7 +691,7 @@ async function analyzeWithClaude(payload) {
 
   const prompt = `${PROJECT_CONTEXT}
 
-─── PAYLOAD DEL SISTEMA (${payload.timestamp}) ───
+--- PAYLOAD DEL SISTEMA (${payload.timestamp}) ---
 
 LOGS RECIENTES:
 ${logsStr}
@@ -699,7 +704,7 @@ STATS: tokens hoy=${payload.stats?.tokensHoy || '?'} | uptime=${payload.stats?.u
 ${moduloRoto ? `\nMÓDULO REPORTADO COMO ROTO POR USUARIO: ${moduloRoto}` : ''}
 ${snippetExtra}
 
-─── TU TAREA ───
+--- TU TAREA ---
 
 Analiza el estado del sistema y responde con un JSON estructurado exactamente así:
 {
@@ -744,46 +749,9 @@ Responde SOLO con el JSON, sin texto adicional, sin markdown.`;
   throw new Error('Todos los proveedores fallaron. Último error: ' + lastError?.message);
 }
 
-  const prompt = `${PROJECT_CONTEXT}
-
-─── PAYLOAD DEL SISTEMA (${payload.timestamp}) ───
-
-LOGS RECIENTES:
-${logsStr}
-
-ERRORES DETECTADOS:
-${erroresStr}
-
-MÓDULOS CARGADOS: ${modulosStr}
-STATS: tokens hoy=${payload.stats?.tokensHoy || '?'} | uptime=${payload.stats?.uptime || '?'} | mensajes=${payload.stats?.mensajes || '?'}
-${moduloRoto ? `\nMÓDULO REPORTADO COMO ROTO POR USUARIO: ${moduloRoto}` : ''}
-${snippetExtra}
-
-─── TU TAREA ───
-
-Analiza el estado del sistema y responde con un JSON estructurado exactamente así:
-{
-  "resumen": "1-2 oraciones sobre el estado general",
-  "bugs": [
-    { "severidad": "alta|media|baja", "descripcion": "...", "linea": "aprox o null", "fix": "cómo resolverlo" }
-  ],
-  "mejoras": [
-    { "tipo": "arquitectura|rendimiento|seguridad|ux", "descripcion": "...", "impacto": "alto|medio|bajo" }
-  ],
-  "instruccion": {
-    "tipo": "fix|modulo_nuevo|optimizacion|ninguna",
-    "descripcion": "qué hacer",
-    "codigo": "código Node.js listo para aplicar, o null si no aplica",
-    "archivo": "nombre del archivo donde aplicar, o null",
-    "prioridad": "inmediata|proxima_sesion|opcional"
-  },
-  "diagnostico_logs": "análisis de los logs en 2-3 oraciones",
-  "saludSistema": "critico|degradado|estable|optimo"
-}
-
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // CICLO PRINCIPAL
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 async function runCycle() {
   const btn = document.getElementById('btnRun');
   btn.disabled = true;
@@ -807,7 +775,7 @@ async function runCycle() {
     const salud = { critico: '🔴', degradado: '🟡', estable: '🟢', optimo: '✨' };
     const saludIcon = salud[analysis.saludSistema] || '⚪';
 
-    let displayText = `${saludIcon} ${analysis.saludSistema?.toUpperCase()} — ${analysis.resumen}\n\n`;
+    let displayText = `${saludIcon} ${analysis.saludSistema?.toUpperCase()} -- ${analysis.resumen}\n\n`;
 
     if (analysis.bugs?.length > 0) {
       displayText += `🐛 BUGS (${analysis.bugs.length}):\n`;
@@ -828,11 +796,11 @@ async function runCycle() {
     displayText += `📋 DIAGNÓSTICO LOGS:\n${analysis.diagnostico_logs}`;
 
     setAnalysis(displayText);
-    updateMetrics(analysis.bugs?.length || 0, payload.modulos?.length || '—');
+    updateMetrics(analysis.bugs?.length || 0, payload.modulos?.length || '--');
 
     // 4. Instrucción para BMO
     if (analysis.instruccion?.tipo !== 'ninguna') {
-      log(`Instrucción generada: ${analysis.instruccion.tipo} — prioridad ${analysis.instruccion.prioridad}`, 'success');
+      log(`Instrucción generada: ${analysis.instruccion.tipo} -- prioridad ${analysis.instruccion.prioridad}`, 'success');
       setInstruction(analysis.instruccion);
 
       // AUTO-APPLY: enviar directo a la Pi sin intervención manual
@@ -844,7 +812,7 @@ async function runCycle() {
     }
 
     // 5. Log de estado
-    log(`Análisis completado — Sistema: ${analysis.saludSistema}`, analysis.saludSistema === 'critico' ? 'error' : 'success');
+    log(`Análisis completado -- Sistema: ${analysis.saludSistema}`, analysis.saludSistema === 'critico' ? 'error' : 'success');
     document.getElementById('lastUpdate').textContent = 'Última actualización: ' + new Date().toLocaleTimeString('es-MX');
 
     setStatus('online');
@@ -860,9 +828,9 @@ async function runCycle() {
   startCountdown(CONFIG.POLL_INTERVAL);
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // ENVÍO AUTOMÁTICO A LA PI
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 async function enviarInstruccionAPi(instruccion) {
   log('📡 Enviando instrucción a la Pi...', 'info');
   try {
@@ -909,9 +877,9 @@ async function enviarInstruccionAPi(instruccion) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // ACCIONES
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 function copyInstruction() {
   if (!lastInstruction) return;
   navigator.clipboard.writeText(JSON.stringify(lastInstruction, null, 2));
@@ -951,16 +919,6 @@ function guardarKeysModal() {
   log('✅ Keys guardadas. Iniciando ciclo...', 'success');
   runCycle();
 }
-  const grok = prompt('Grok API Key:', localStorage.getItem('bmo_grok_key') || '');
-  if (grok !== null) {
-    localStorage.setItem('bmo_grok_key', grok);
-    CONFIG.AI_PROVIDERS[1].key = grok;
-  }
-  if (mistral || grok) {
-    log('✅ Keys guardadas. Iniciando ciclo...', 'success');
-    runCycle();
-  }
-}
 
 function guardarKeys() {
   const mistral = document.getElementById('inputMistral').value.trim();
@@ -978,27 +936,27 @@ function toggleAutoApply() {
     btn.textContent = '🤖 Auto: ON';
     btn.style.borderColor = 'var(--green)';
     btn.style.color = 'var(--green)';
-    log('Auto-apply activado — las instrucciones se envían solas a la Pi.', 'success');
+    log('Auto-apply activado -- las instrucciones se envían solas a la Pi.', 'success');
   } else {
     btn.textContent = '🤖 Auto: OFF';
     btn.style.borderColor = 'var(--dim)';
     btn.style.color = 'var(--dim)';
-    log('Auto-apply desactivado — usa "Enviar a Pi" manualmente.', 'warn');
+    log('Auto-apply desactivado -- usa "Enviar a Pi" manualmente.', 'warn');
   }
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // CONFIGURACIÓN GIST URL (override desde consola si hace falta)
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 window.setBmoGist = function(url) {
   CONFIG.GIST_URL = url;
   log('Gist URL actualizada: ' + url, 'success');
 };
 window.setAutoApply = function(v) { CONFIG.AUTO_APPLY = v; };
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // INICIO
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 window.addEventListener('load', () => {
   setStatus('online');
   log('Sistema listo. Sin dependencias externas.', 'success');
