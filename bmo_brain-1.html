@@ -538,6 +538,7 @@ Nunca inventas datos. Si no tienes suficiente información, lo dices.
 // ESTADO INTERNO
 // -------------------------------------------------------------
 let cycles = 0;
+let lastPayloadHash = null;
 let lastAnalysisCache = null;
 let lastAnalysisTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutos de cache
