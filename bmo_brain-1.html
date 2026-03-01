@@ -710,6 +710,16 @@ async function analyzeWithClaude(payload) {
     ? `\nCÓDIGO CON PROBLEMA REPORTADO POR USUARIO:\n${payload.codigoSnippet}`
     : '';
 
+  // Archivos del proyecto para analisis profundo
+  const archivosStr = Object.entries(payload.archivos || {})
+    .map(([nombre, codigo]) => `=== ${nombre} ===\n${codigo}`)
+    .join('\n\n').slice(0, 4000);
+
+  // Modulos rotos de evoluciones
+  const modulosRotosStr = (payload.modulosRotos || [])
+    .map(m => `MODULO ROTO: ${m.nombre}\nERROR: ${m.error}\nCODIGO:\n${m.codigo || 'sin codigo'}`)
+    .join('\n\n');
+
   const prompt = `${PROJECT_CONTEXT}
 
 --- PAYLOAD DEL SISTEMA (${payload.timestamp}) ---
@@ -723,6 +733,8 @@ ${erroresStr}
 MÓDULOS CARGADOS: ${modulosStr}
 STATS: tokens hoy=${payload.stats?.tokensHoy || '?'} | uptime=${payload.stats?.uptime || '?'} | mensajes=${payload.stats?.mensajes || '?'}
 ${moduloRoto ? `\nMÓDULO REPORTADO COMO ROTO POR USUARIO: ${moduloRoto}` : ''}
+${modulosRotosStr ? `\nMÓDULOS DE EVOLUCIONES CON ERRORES:\n${modulosRotosStr}` : ''}
+${archivosStr ? `\nCÓDIGO DE ARCHIVOS CLAVE:\n${archivosStr}` : ''}
 ${snippetExtra}
 
 --- TU TAREA ---
