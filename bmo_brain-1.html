@@ -472,7 +472,7 @@
 // -------------------------------------------------------------
 const CONFIG = {
   GIST_URL: 'https://gist.githubusercontent.com/rendonbarco727-coder/af6bf93648a54d971c89fe0ae8d37d46/raw/bmo_status.json',
-  POLL_INTERVAL: 60 * 1000,
+  POLL_INTERVAL: 5 * 60 * 1000, // 5 minutos para ahorrar tokens
   PI_ENDPOINT: 'http://100.81.246.50:3001',
   PI_SECRET: 'bmo-bridge-secret-2025',
   AUTO_APPLY: true,
@@ -538,10 +538,19 @@ Nunca inventas datos. Si no tienes suficiente información, lo dices.
 // ESTADO INTERNO
 // -------------------------------------------------------------
 let cycles = 0;
+let lastAnalysisCache = null;
+let lastAnalysisTime = 0;
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutos de cache
+
+function hashPayload(payload) {
+  const key = (payload.errores || []).join('|') + (payload.logs || []).slice(-3).join('|');
+  let h = 0;
+  for (let i = 0; i < key.length; i++) { h = ((h << 5) - h) + key.charCodeAt(i); h |= 0; }
+  return h.toString();
+}
 let lastInstruction = null;
 let countdownTimer = null;
 let nextCycleAt = null;
-let lastPayloadHash = null;
 
 // -------------------------------------------------------------
 // TERMINAL
@@ -681,7 +690,18 @@ async function callProvider(provider, prompt) {
 }
 
 async function analyzeWithClaude(payload) {
-  const logsStr = (payload.logs || []).slice(-20).join('\n');
+  // Verificar cache para no gastar tokens innecesarios
+  const hash = hashPayload(payload);
+  const ahora = Date.now();
+  if (hash === lastPayloadHash && lastAnalysisCache && (ahora - lastAnalysisTime) < CACHE_TTL) {
+    log('Usando análisis en cache (sin cambios detectados)', 'info');
+    return lastAnalysisCache;
+  }
+  lastPayloadHash = hash;
+  // Solo logs con errores para ahorrar tokens
+  const todosLogs = (payload.logs || []);
+  const logsConError = todosLogs.filter(l => /error|warn|fail|crash|syntax/i.test(l)).slice(-5);
+  const logsStr = logsConError.length > 0 ? logsConError.join('\n') : todosLogs.slice(-5).join('\n');
   const erroresStr = (payload.errores || []).join('\n') || 'ninguno';
   const modulosStr = (payload.modulos || []).join(', ') || 'ninguno';
   const moduloRoto = payload.moduloRoto || null;
@@ -749,6 +769,11 @@ Responde SOLO con el JSON, sin texto adicional, sin markdown.`;
   throw new Error('Todos los proveedores fallaron. Último error: ' + lastError?.message);
 }
 
+function guardarEnCache(resultado) {
+  lastAnalysisCache = resultado;
+  lastAnalysisTime = Date.now();
+}
+
 // -------------------------------------------------------------
 // CICLO PRINCIPAL
 // -------------------------------------------------------------
@@ -812,6 +837,7 @@ async function runCycle() {
     }
 
     // 5. Log de estado
+    guardarEnCache(analysis);
     log(`Análisis completado -- Sistema: ${analysis.saludSistema}`, analysis.saludSistema === 'critico' ? 'error' : 'success');
     document.getElementById('lastUpdate').textContent = 'Última actualización: ' + new Date().toLocaleTimeString('es-MX');
 
