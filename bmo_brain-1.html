@@ -751,7 +751,7 @@ Analiza el estado del sistema y responde con un JSON estructurado exactamente as
   "instruccion": {
     "tipo": "fix|modulo_nuevo|optimizacion|ninguna",
     "descripcion": "qué hacer",
-    "codigo": "código Node.js listo para aplicar, o null si no aplica. IMPORTANTE: el código debe ser defensivo, nunca lanzar excepciones con throw, usar try/catch, verificar existencia de variables antes de usarlas, no asumir que LID u otros campos existen",
+    "codigo": "código Node.js ESM (import/export, NUNCA require/module.exports). CRÍTICO: JAMÁS uses throw new Error, JAMÁS uses require(). Todo en try/catch silencioso. Si algo falla, loguea con console.log y retorna null. Verifica que variables existan antes de usarlas.",
     "archivo": "nombre del archivo donde aplicar, o null",
     "modo": "reemplazar|append",
     "prioridad": "inmediata|proxima_sesion|opcional"
