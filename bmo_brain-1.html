@@ -22,6 +22,7 @@
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
   body {
     background: var(--bg);
     color: var(--text);
@@ -423,8 +424,10 @@
         — Sin instrucciones pendientes —
       </div>
       <div class="btn-row">
+        <button class="btn primary" id="btnSendPi" onclick="enviarManual()">📡 Enviar a Pi</button>
         <button class="btn" id="btnCopy" onclick="copyInstruction()" disabled>📋 Copiar instrucción</button>
         <button class="btn" id="btnDownload" onclick="downloadInstruction()" disabled>⬇ Descargar .json</button>
+        <button class="btn" id="btnAutoApply" onclick="toggleAutoApply()" style="margin-left:auto; border-color:var(--green); color:var(--green);">🤖 Auto: ON</button>
       </div>
     </div>
 
@@ -442,10 +445,13 @@
 // CONFIGURACIÓN
 // ─────────────────────────────────────────────────────────────
 const CONFIG = {
-  // URL del JSON que BMO sube a GitHub Gist (se configura después)
-  GIST_URL: localStorage.getItem('bmo_gist_url') || 'https://gist.githubusercontent.com/rendonbarco727-coder/af6bf93648a54d971c89fe0ae8d37d46/raw/bmo_status.json',
-  POLL_INTERVAL: 5 * 60 * 1000, // 5 minutos
-  MODEL: 'claude-sonnet-4-6'
+  GIST_URL: 'https://gist.githubusercontent.com/rendonbarco727-coder/af6bf93648a54d971c89fe0ae8d37d46/raw/bmo_status.json',
+  POLL_INTERVAL: 60 * 1000, // 1 minuto
+  MODEL: 'claude-sonnet-4-6',
+  // Endpoint en la Pi (accesible via Tailscale)
+  PI_ENDPOINT: 'http://100.81.246.50:3001',
+  PI_SECRET: 'bmo-bridge-secret-2025',
+  AUTO_APPLY: true // Aplicar instrucciones automáticamente sin botón
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -495,6 +501,7 @@ let cycles = 0;
 let lastInstruction = null;
 let countdownTimer = null;
 let nextCycleAt = null;
+let lastPayloadHash = null;
 
 // ─────────────────────────────────────────────────────────────
 // TERMINAL
@@ -710,6 +717,11 @@ async function runCycle() {
     if (analysis.instruccion?.tipo !== 'ninguna') {
       log(`Instrucción generada: ${analysis.instruccion.tipo} — prioridad ${analysis.instruccion.prioridad}`, 'success');
       setInstruction(analysis.instruccion);
+
+      // AUTO-APPLY: enviar directo a la Pi sin intervención manual
+      if (CONFIG.AUTO_APPLY) {
+        await enviarInstruccionAPi(analysis.instruccion);
+      }
     } else {
       log('Sin instrucciones pendientes para este ciclo.', 'info');
     }
@@ -732,6 +744,55 @@ async function runCycle() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// ENVÍO AUTOMÁTICO A LA PI
+// ─────────────────────────────────────────────────────────────
+async function enviarInstruccionAPi(instruccion) {
+  log('📡 Enviando instrucción a la Pi...', 'info');
+  try {
+    // Agregar timestamp para que el bridge sepa si ya la aplicó
+    instruccion.timestamp = instruccion.timestamp || new Date().toISOString();
+
+    const res = await fetch(`${CONFIG.PI_ENDPOINT}/instruccion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-BMO-Secret': CONFIG.PI_SECRET
+      },
+      body: JSON.stringify(instruccion),
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    log(`✅ Pi aplicó: ${data.mensaje}`, 'success');
+
+    // Notificar visualmente
+    const box = document.getElementById('instructionBox');
+    box.style.borderColor = 'var(--green)';
+    box.style.background = 'rgba(0,255,136,0.06)';
+    setTimeout(() => {
+      box.style.borderColor = '';
+      box.style.background = '';
+    }, 3000);
+
+    return true;
+  } catch(e) {
+    if (e.name === 'TypeError' || e.message.includes('Failed to fetch')) {
+      log('⚠️ Pi no accesible (¿Tailscale activo? ¿endpoint corriendo?)', 'warn');
+    } else {
+      log(`❌ Error enviando a Pi: ${e.message}`, 'error');
+    }
+    // Guardar instrucción para aplicar manualmente si falla
+    setInstruction(instruccion);
+    return false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // ACCIONES
 // ─────────────────────────────────────────────────────────────
 function copyInstruction() {
@@ -750,16 +811,35 @@ function downloadInstruction() {
   log('Instrucción descargada.', 'success');
 }
 
+async function enviarManual() {
+  if (!lastInstruction) { log('Sin instrucción para enviar.', 'warn'); return; }
+  await enviarInstruccionAPi(lastInstruction);
+}
+
+function toggleAutoApply() {
+  CONFIG.AUTO_APPLY = !CONFIG.AUTO_APPLY;
+  const btn = document.getElementById('btnAutoApply');
+  if (CONFIG.AUTO_APPLY) {
+    btn.textContent = '🤖 Auto: ON';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    log('Auto-apply activado — las instrucciones se envían solas a la Pi.', 'success');
+  } else {
+    btn.textContent = '🤖 Auto: OFF';
+    btn.style.borderColor = 'var(--dim)';
+    btn.style.color = 'var(--dim)';
+    log('Auto-apply desactivado — usa "Enviar a Pi" manualmente.', 'warn');
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
-// CONFIGURACIÓN GIST URL
+// CONFIGURACIÓN GIST URL (override desde consola si hace falta)
 // ─────────────────────────────────────────────────────────────
-// Puedes configurar la URL del Gist desde la consola del navegador:
-// setBmoGist('https://gist.githubusercontent.com/usuario/id/raw/bmo_status.json')
 window.setBmoGist = function(url) {
   CONFIG.GIST_URL = url;
-  localStorage.setItem('bmo_gist_url', url);
-  log('Gist URL configurada: ' + url, 'success');
+  log('Gist URL actualizada: ' + url, 'success');
 };
+window.setAutoApply = function(v) { CONFIG.AUTO_APPLY = v; };
 
 // ─────────────────────────────────────────────────────────────
 // INICIO
@@ -767,13 +847,9 @@ window.setBmoGist = function(url) {
 window.addEventListener('load', () => {
   setStatus('online');
   log('Sistema listo. Puter.js cargado.', 'success');
-  if (CONFIG.GIST_URL) {
-    log('Gist URL configurada. Iniciando ciclo automático.', 'info');
-    runCycle();
-  } else {
-    log('Sin Gist URL. Usa el botón "Ejecutar ciclo" para demo, o configura:', 'warn');
-    log('setBmoGist("https://gist.githubusercontent.com/.../bmo_status.json")', 'info');
-  }
+  log(`Gist URL configurada. Iniciando ciclo automático cada ${CONFIG.POLL_INTERVAL/1000}s.`, 'info');
+  log(`Auto-apply: ${CONFIG.AUTO_APPLY ? 'ON' : 'OFF'} | Pi: ${CONFIG.PI_ENDPOINT}`, 'info');
+  runCycle();
 });
 </script>
 </body>
