@@ -934,11 +934,19 @@ async function enviarManual() {
 }
 
 function toggleConfig() {
-  const p = document.getElementById('configPanel');
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
-  if (p.style.display === 'block') {
-    document.getElementById('inputMistral').value = localStorage.getItem('bmo_mistral_key') || '';
-    document.getElementById('inputGrok').value = localStorage.getItem('bmo_grok_key') || '';
+  const mistral = prompt('Mistral API Key:', localStorage.getItem('bmo_mistral_key') || '');
+  if (mistral !== null) {
+    localStorage.setItem('bmo_mistral_key', mistral);
+    CONFIG.AI_PROVIDERS[0].key = mistral;
+  }
+  const grok = prompt('Grok API Key:', localStorage.getItem('bmo_grok_key') || '');
+  if (grok !== null) {
+    localStorage.setItem('bmo_grok_key', grok);
+    CONFIG.AI_PROVIDERS[1].key = grok;
+  }
+  if (mistral || grok) {
+    log('✅ Keys guardadas. Iniciando ciclo...', 'success');
+    runCycle();
   }
 }
 
