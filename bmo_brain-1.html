@@ -934,11 +934,23 @@ async function enviarManual() {
 }
 
 function toggleConfig() {
-  const mistral = prompt('Mistral API Key:', localStorage.getItem('bmo_mistral_key') || '');
-  if (mistral !== null) {
-    localStorage.setItem('bmo_mistral_key', mistral);
-    CONFIG.AI_PROVIDERS[0].key = mistral;
-  }
+  const modal = document.getElementById('keysModal');
+  modal.style.display = 'flex';
+  document.getElementById('modalMistral').value = localStorage.getItem('bmo_mistral_key') || '';
+  document.getElementById('modalGrok').value = localStorage.getItem('bmo_grok_key') || '';
+}
+function cerrarModal() {
+  document.getElementById('keysModal').style.display = 'none';
+}
+function guardarKeysModal() {
+  const mistral = document.getElementById('modalMistral').value.trim();
+  const grok = document.getElementById('modalGrok').value.trim();
+  if (mistral) { localStorage.setItem('bmo_mistral_key', mistral); CONFIG.AI_PROVIDERS[0].key = mistral; }
+  if (grok)    { localStorage.setItem('bmo_grok_key', grok);       CONFIG.AI_PROVIDERS[1].key = grok; }
+  cerrarModal();
+  log('✅ Keys guardadas. Iniciando ciclo...', 'success');
+  runCycle();
+}
   const grok = prompt('Grok API Key:', localStorage.getItem('bmo_grok_key') || '');
   if (grok !== null) {
     localStorage.setItem('bmo_grok_key', grok);
@@ -1008,5 +1020,24 @@ window.addEventListener('load', () => {
   runCycle();
 });
 </script>
+
+<div id="keysModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#0a0f1e;border:1px solid #00e5ff;border-radius:16px;padding:28px;width:90%;max-width:420px;font-family:'JetBrains Mono',monospace;">
+    <div style="font-size:14px;color:#00e5ff;font-weight:700;margin-bottom:20px;text-transform:uppercase;letter-spacing:2px;">⚙ API Keys</div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;color:#4a5568;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">🤖 Mistral Key</div>
+      <input id="modalMistral" type="password" placeholder="WKaE64Y5X5TJ..." style="width:100%;padding:10px 14px;background:#020408;border:1px solid #1a2340;border-radius:8px;color:#c8d6f0;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;">
+    </div>
+    <div style="margin-bottom:24px;">
+      <div style="font-size:10px;color:#4a5568;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">⚡ Grok Key (xAI)</div>
+      <input id="modalGrok" type="password" placeholder="xai-vjGn..." style="width:100%;padding:10px 14px;background:#020408;border:1px solid #1a2340;border-radius:8px;color:#c8d6f0;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="guardarKeysModal()" style="flex:1;padding:10px;background:rgba(0,229,255,0.1);border:1px solid #00e5ff;border-radius:8px;color:#00e5ff;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;text-transform:uppercase;letter-spacing:1px;">💾 Guardar</button>
+      <button onclick="cerrarModal()" style="padding:10px 16px;background:transparent;border:1px solid #1a2340;border-radius:8px;color:#4a5568;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:10px;color:#4a5568;margin-top:12px;">Solo se guardan en tu navegador. Nunca llegan a GitHub.</div>
+  </div>
+</div>
 </body>
 </html>
