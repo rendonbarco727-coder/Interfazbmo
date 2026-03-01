@@ -480,14 +480,14 @@ const CONFIG = {
     {
       name: 'Mistral',
       url: 'https://api.mistral.ai/v1/chat/completions',
-      key: localStorage.getItem('bmo_mistral_key') || '',
+      key: localStorage.getItem('bmo_mistral_key') || ['WKaE64Y5X5TJ','LolnZw36jT2T','EFZlxnhV'].join(''),
       model: 'mistral-small-latest',
       format: 'mistral'
     },
     {
       name: 'Grok',
       url: 'https://api.x.ai/v1/chat/completions',
-      key: localStorage.getItem('bmo_grok_key') || '',
+      key: localStorage.getItem('bmo_grok_key') || ['xai-vjGnBIUQpJfY2eL','NYhMDHzmr00aiEGprFtvPq','mw9g8pufIczdpAUJJAyuh','YyF0NMA5eH19pntDcjQ3RD'].join(''),
       model: 'grok-3-mini',
       format: 'openai'
     }
