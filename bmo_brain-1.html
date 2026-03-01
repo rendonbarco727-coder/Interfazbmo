@@ -832,46 +832,56 @@ async function runCycle() {
 // ENVÍO AUTOMÁTICO A LA PI
 // -------------------------------------------------------------
 async function enviarInstruccionAPi(instruccion) {
-  log('📡 Enviando instrucción a la Pi...', 'info');
+  log('📡 Subiendo instrucción al Gist para que la Pi la descargue...', 'info');
   try {
-    // Agregar timestamp para que el bridge sepa si ya la aplicó
     instruccion.timestamp = instruccion.timestamp || new Date().toISOString();
 
-    const res = await fetch(`${CONFIG.PI_ENDPOINT}/instruccion`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-BMO-Secret': CONFIG.PI_SECRET
-      },
-      body: JSON.stringify(instruccion),
-      signal: AbortSignal.timeout(10000) // 10s timeout
-    });
+    // Subir bmo_instruccion.json al Gist
+    const gistId = 'af6bf93648a54d971c89fe0ae8d37d46';
+    const mistralKey = CONFIG.AI_PROVIDERS[0].key;
+    // Usar GitHub API anonima no funciona para PATCH - necesita token
+    // Subir via fetch con token de Mistral no aplica - usar workaround:
+    // Guardar en localStorage y mostrar instruccion para copiar manualmente
+    // O intentar con token si esta disponible en CONFIG
+    const githubToken = localStorage.getItem('bmo_github_token') || '';
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}`);
+    if (!githubToken) {
+      log('⚠️ Sin GitHub token -- La instrucción está lista abajo. La Pi la aplicará en el próximo ciclo del bridge si configuras el token.', 'warn');
+      log('💡 Agrega tu GitHub token: abre Keys (⚙ KEYS) y pégalo en el campo GitHub Token', 'info');
+      setInstruction(instruccion);
+      return false;
     }
 
-    const data = await res.json();
-    log(`✅ Pi aplicó: ${data.mensaje}`, 'success');
+    const body = JSON.stringify({
+      files: {
+        'bmo_instruccion.json': {
+          content: JSON.stringify(instruccion, null, 2)
+        }
+      }
+    });
 
-    // Notificar visualmente
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Content-Type': 'application/json'
+      },
+      body,
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!res.ok) throw new Error(`GitHub API HTTP ${res.status}`);
+
+    log('✅ Instrucción subida al Gist. La Pi la aplicará en max 5 minutos.', 'success');
+
     const box = document.getElementById('instructionBox');
     box.style.borderColor = 'var(--green)';
     box.style.background = 'rgba(0,255,136,0.06)';
-    setTimeout(() => {
-      box.style.borderColor = '';
-      box.style.background = '';
-    }, 3000);
-
+    setTimeout(() => { box.style.borderColor = ''; box.style.background = ''; }, 3000);
     return true;
+
   } catch(e) {
-    if (e.name === 'TypeError' || e.message.includes('Failed to fetch')) {
-      log('⚠️ Pi no accesible (¿Tailscale activo? ¿endpoint corriendo?)', 'warn');
-    } else {
-      log(`❌ Error enviando a Pi: ${e.message}`, 'error');
-    }
-    // Guardar instrucción para aplicar manualmente si falla
+    log(`❌ Error subiendo al Gist: ${e.message}`, 'error');
     setInstruction(instruccion);
     return false;
   }
@@ -905,6 +915,7 @@ function toggleConfig() {
   const modal = document.getElementById('keysModal');
   modal.style.visibility = 'visible';
   document.getElementById('modalMistral').value = localStorage.getItem('bmo_mistral_key') || '';
+  document.getElementById('modalGithub').value = localStorage.getItem('bmo_github_token') || '';
   document.getElementById('modalGrok').value = localStorage.getItem('bmo_grok_key') || '';
 }
 function cerrarModal() {
@@ -913,8 +924,10 @@ function cerrarModal() {
 function guardarKeysModal() {
   const mistral = document.getElementById('modalMistral').value.trim();
   const grok = document.getElementById('modalGrok').value.trim();
+  const github = document.getElementById('modalGithub').value.trim();
   if (mistral) { localStorage.setItem('bmo_mistral_key', mistral); CONFIG.AI_PROVIDERS[0].key = mistral; }
   if (grok)    { localStorage.setItem('bmo_grok_key', grok);       CONFIG.AI_PROVIDERS[1].key = grok; }
+  if (github)  { localStorage.setItem('bmo_github_token', github); }
   cerrarModal();
   log('✅ Keys guardadas. Iniciando ciclo...', 'success');
   runCycle();
@@ -978,7 +991,11 @@ window.addEventListener('load', () => {
   <div style="background:#0a0f1e;border:1px solid #00e5ff;border-radius:16px;padding:28px;width:90%;max-width:420px;font-family:'JetBrains Mono',monospace;">
     <div style="font-size:14px;color:#00e5ff;font-weight:700;margin-bottom:20px;text-transform:uppercase;letter-spacing:2px;">⚙ API Keys</div>
     <div style="margin-bottom:16px;">
-      <div style="font-size:10px;color:#4a5568;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">🤖 Mistral Key</div>
+      <div style="margin-bottom:16px;">
+      <div style="font-size:10px;color:#4a5568;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">🐙 GitHub Token</div>
+      <input id="modalGithub" type="password" placeholder="ghp_..." style="width:100%;padding:10px 14px;background:#020408;border:1px solid #1a2340;border-radius:8px;color:#c8d6f0;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;">
+    </div>
+    <div style="font-size:10px;color:#4a5568;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">🤖 Mistral Key</div>
       <input id="modalMistral" type="password" placeholder="WKaE64Y5X5TJ..." style="width:100%;padding:10px 14px;background:#020408;border:1px solid #1a2340;border-radius:8px;color:#c8d6f0;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;">
     </div>
     <div style="margin-bottom:24px;">
