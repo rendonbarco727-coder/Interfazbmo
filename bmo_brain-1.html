@@ -1005,16 +1005,11 @@ window.addEventListener('load', () => {
   log(`Ciclo automático cada ${CONFIG.POLL_INTERVAL/1000}s | Auto-apply: ${CONFIG.AUTO_APPLY ? 'ON' : 'OFF'}`, 'info');
 
   // Verificar que hay keys configuradas
+  // Sobrescribir keys solo si hay algo en localStorage
   const mistralKey = localStorage.getItem('bmo_mistral_key');
   const grokKey = localStorage.getItem('bmo_grok_key');
-  CONFIG.AI_PROVIDERS[0].key = mistralKey || '';
-  CONFIG.AI_PROVIDERS[1].key = grokKey || '';
-
-  if (!mistralKey && !grokKey) {
-    log('⚠️ Sin API keys configuradas. Haz clic en ⚙ Keys para agregarlas.', 'warn');
-    toggleConfig();
-    return;
-  }
+  if (mistralKey) CONFIG.AI_PROVIDERS[0].key = mistralKey;
+  if (grokKey)    CONFIG.AI_PROVIDERS[1].key = grokKey;
 
   log(`Pi: ${CONFIG.PI_ENDPOINT}`, 'info');
   runCycle();
