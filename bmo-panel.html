@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BMO — Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Space+Mono&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#07050f;--surface:rgba(15,10,30,0.85);--border:rgba(139,92,246,0.18);--bh:rgba(139,92,246,0.5);--ac:#8b5cf6;--ac2:#c084fc;--ac3:#e879f9;--tx:rgba(230,220,255,0.9);--td:rgba(168,140,255,0.45);--danger:#f43f5e;--ok:#34d399;--warn:#fbbf24}
+html,body{min-height:100%;background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;font-weight:300}
+#bgc{position:fixed;inset:0;z-index:0;opacity:.35;pointer-events:none}
+.app{position:relative;z-index:1;display:grid;grid-template-columns:250px 1fr;grid-template-rows:60px 1fr;min-height:100vh}
+header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(7,5,15,.8)}
+.logo{font-family:'Syncopate',sans-serif;font-size:13px;font-weight:700;letter-spacing:.3em;color:var(--ac2);display:flex;align-items:center;gap:9px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ac3);box-shadow:0 0 10px var(--ac3);animation:p 2s infinite}
+@keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.hbadge{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;padding:4px 12px;border-radius:20px;border:1px solid rgba(52,211,153,.3);color:var(--ok);background:rgba(52,211,153,.05);display:flex;align-items:center;gap:5px}
+.hbadge::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}
+aside{border-right:1px solid var(--border);padding:20px 14px;backdrop-filter:blur(20px);background:rgba(10,6,22,.6);display:flex;flex-direction:column;gap:4px;overflow-y:auto}
+.ns{font-family:'Syncopate',sans-serif;font-size:7px;letter-spacing:.3em;color:var(--td);padding:14px 10px 6px;text-transform:uppercase}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:7px;cursor:pointer;transition:all .2s;font-size:12px;color:var(--td);border:1px solid transparent}
+.ni:hover{background:rgba(139,92,246,.07);border-color:var(--border);color:var(--tx)}
+.ni.act{background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.3);color:var(--ac2)}
+.ni svg{width:14px;height:14px;flex-shrink:0}
+.ndiv{height:1px;background:var(--border);margin:6px 10px}
+main{padding:24px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;max-height:calc(100vh - 60px)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:14px 16px;transition:border-color .2s}
+.sc:hover{border-color:var(--bh)}
+.sl{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:.18em;color:var(--td);text-transform:uppercase;margin-bottom:7px}
+.sv{font-family:'Syncopate',sans-serif;font-size:17px;font-weight:700;color:var(--ac2)}
+.ss{font-size:10px;color:var(--td);margin-top:3px}
+.tb{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pt{font-family:'Syncopate',sans-serif;font-size:11px;font-weight:700;letter-spacing:.22em;color:var(--ac2);flex:1}
+.sb{display:flex;align-items:center;gap:7px;background:rgba(15,10,30,.8);border:1px solid var(--border);border-radius:6px;padding:7px 12px;transition:border-color .2s}
+.sb:focus-within{border-color:var(--bh)}
+.sb input{background:none;border:none;outline:none;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:12px;width:180px}
+.sb input::placeholder{color:var(--td)}
+.sb svg{width:13px;height:13px;color:var(--td)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:5px;border:1px solid;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;cursor:pointer;transition:all .2s;text-transform:uppercase;white-space:nowrap;background:transparent}
+.bp{border-color:rgba(168,85,247,.5);color:var(--ac2)}
+.bp:hover{background:rgba(139,92,246,.2);box-shadow:0 0 18px rgba(139,92,246,.25)}
+.bg{border-color:var(--border);color:var(--td)}
+.bg:hover{border-color:var(--bh);color:var(--tx)}
+.bd{border-color:rgba(244,63,94,.3);color:var(--danger)}
+.bd:hover{background:rgba(244,63,94,.1)}
+.bk{border-color:rgba(52,211,153,.3);color:var(--ok)}
+.bk:hover{background:rgba(52,211,153,.1)}
+.btn:disabled{opacity:.35;pointer-events:none}
+.btn svg{width:12px;height:12px}
+.selbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:7px;font-size:11px;color:var(--ac2)}
+.selbar.h{display:none}
+.sp{flex:1}
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden}
+.fh{display:grid;grid-template-columns:20px 1fr 90px 130px 110px;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:8px;letter-spacing:.14em;color:var(--td);text-transform:uppercase}
+.fr{display:grid;grid-template-columns:20px 1fr 90px 130px 110px;gap:10px;padding:11px 16px;border-bottom:1px solid rgba(139,92,246,.05);align-items:center;transition:background .15s;cursor:pointer}
+.fr:last-child{border-bottom:none}
+.fr:hover{background:rgba(139,92,246,.045)}
+.fr.sel{background:rgba(139,92,246,.09)}
+.ck{width:14px;height:14px;border:1px solid var(--border);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.fr.sel .ck{background:var(--ac);border-color:var(--ac)}
+.fr.sel .ck::after{content:'✓';font-size:9px;color:#fff}
+.fi{width:30px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.fi.js{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2)}
+.fi.jn{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2)}
+.fi.ot{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2)}
+.fnc{display:flex;align-items:center;gap:9px;min-width:0}
+.fn{font-size:12px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbg{font-family:'Space Mono',monospace;font-size:7px;padding:2px 6px;border-radius:3px;letter-spacing:.07em;flex-shrink:0}
+.fbg.main{background:rgba(139,92,246,.2);color:var(--ac2);border:1px solid rgba(139,92,246,.3)}
+.fbg.mod{background:rgba(52,211,153,.1);color:var(--ok);border:1px solid rgba(52,211,153,.2)}
+.fsz{font-family:'Space Mono',monospace;font-size:10px;color:var(--td)}
+.fmd{font-family:'Space Mono',monospace;font-size:10px;color:var(--td)}
+.fa{display:flex;gap:5px;justify-content:flex-end}
+.ib{width:26px;height:26px;border-radius:4px;border:1px solid var(--border);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--td)}
+.ib:hover.e{border-color:rgba(139,92,246,.5);color:var(--ac2);background:rgba(139,92,246,.1)}
+.ib:hover.d{border-color:rgba(52,211,153,.5);color:var(--ok);background:rgba(52,211,153,.1)}
+.ib:hover.x{border-color:rgba(244,63,94,.5);color:var(--danger);background:rgba(244,63,94,.1)}
+.ib svg{width:12px;height:12px}
+.uz{border:2px dashed var(--border);border-radius:9px;padding:30px;text-align:center;transition:all .3s;cursor:pointer}
+.uz:hover,.uz.dv{border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.04)}
+.uz svg{width:28px;height:28px;color:var(--td);margin:0 auto 10px;display:block}
+.uz p{color:var(--td);font-size:12px}
+.uz strong{color:var(--ac2)}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.mo.op{opacity:1;pointer-events:all}
+.md{background:#0d0920;border:1px solid var(--bh);border-radius:13px;width:min(880px,95vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;transform:scale(.95);transition:transform .3s}
+.mo.op .md{transform:scale(1)}
+.mh{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.mt{font-family:'Syncopate',sans-serif;font-size:9px;letter-spacing:.25em;color:var(--ac2);flex:1}
+.mf{font-family:'Space Mono',monospace;font-size:10px;color:var(--td)}
+.ea{flex:1;overflow:hidden;min-height:380px}
+#ce{width:100%;height:100%;min-height:380px;background:transparent;border:none;outline:none;color:var(--tx);font-family:'Space Mono',monospace;font-size:11px;line-height:1.7;padding:18px;resize:none;tab-size:2}
+.mft{display:flex;align-items:center;gap:9px;padding:12px 18px;border-top:1px solid var(--border)}
+.ei{font-family:'Space Mono',monospace;font-size:8px;color:var(--td);letter-spacing:.1em;flex:1}
+.tc{position:fixed;bottom:22px;right:22px;z-index:200;display:flex;flex-direction:column;gap:7px}
+.t{padding:10px 16px;border-radius:7px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.07em;border:1px solid;animation:si .3s ease;display:flex;align-items:center;gap:8px}
+.t.ok{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3);color:var(--ok)}
+.t.er{background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.3);color:var(--danger)}
+.t.nf{background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3);color:var(--ac2)}
+@keyframes si{from{transform:translateX(100%);opacity:0}to{transform:none;opacity:1}}
+.ld{display:flex;align-items:center;justify-content:center;padding:36px;color:var(--td);gap:9px;font-family:'Space Mono',monospace;font-size:10px}
+.sp2{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--ac);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.em{text-align:center;padding:44px;color:var(--td);font-size:12px}
+.bl{display:flex;flex-direction:column;gap:7px}
+.bi{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:7px;transition:border-color .2s}
+.bi:hover{border-color:var(--bh)}
+.bn{font-family:'Space Mono',monospace;font-size:10px;color:var(--tx);flex:1}
+.bd2{font-family:'Space Mono',monospace;font-size:9px;color:var(--td)}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:rgba(139,92,246,.3);border-radius:2px}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas>
+<div class="app">
+<header>
+  <div class="logo"><div class="dot"></div>BMO CONTROL</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span id="hs" style="font-family:'Space Mono',monospace;font-size:9px;color:var(--td);letter-spacing:.1em">verificando...</span>
+    <div class="hbadge" id="hb">CONECTADO</div>
+  </div>
+</header>
+<aside>
+  <div class="ns">Archivos</div>
+  <div class="ni act" onclick="nav('all',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg>Todos los archivos</div>
+  <div class="ni" onclick="nav('json',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>JSONs / Datos</div>
+  <div class="ni" onclick="nav('bk',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Backups</div>
+  <div class="ndiv"></div>
+  <div class="ns">Sistema</div>
+  <div class="ni" onclick="nav('up',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Subir archivo</div>
+  <div class="ni" onclick="restartBot()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>Reiniciar BMO</div>
+  <div class="ni" onclick="mkBackup()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Crear backup</div>
+</aside>
+<main id="mc">
+  <div class="stats" id="st">
+    <div class="sc"><div class="sl">Archivos JS</div><div class="sv" id="sjs">—</div><div class="ss">módulos</div></div>
+    <div class="sc"><div class="sl">JSON / Datos</div><div class="sv" id="sjn">—</div><div class="ss">configuración</div></div>
+    <div class="sc"><div class="sl">Backups</div><div class="sv" id="sbk">—</div><div class="ss">respaldos</div></div>
+    <div class="sc"><div class="sl">Tamaño total</div><div class="sv" id="ssz">—</div><div class="ss">del proyecto</div></div>
+  </div>
+  <div class="tb">
+    <div class="pt" id="ptitle">ARCHIVOS DEL PROYECTO</div>
+    <div class="sb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="qi" placeholder="Buscar..." oninput="filt()"/></div>
+    <button class="btn bp" onclick="load()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>Recargar</button>
+  </div>
+  <div class="selbar h" id="selbar">
+    <span id="sct" style="font-family:'Space Mono',monospace;font-weight:700">0</span>&nbsp;seleccionados
+    <div class="sp"></div>
+    <button class="btn bg" onclick="dlSel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Descargar</button>
+    <button class="btn bd" onclick="delSel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>Eliminar</button>
+    <button class="btn bg" onclick="clrSel()">✕</button>
+  </div>
+  <div class="fc" id="ftable">
+    <div class="fh"><div></div><div>Nombre</div><div>Tamaño</div><div>Modificado</div><div style="text-align:right">Acciones</div></div>
+    <div id="fl"><div class="ld"><div class="sp2"></div>Cargando...</div></div>
+  </div>
+  <div id="upsec" style="display:none">
+    <div class="uz" id="dz" onclick="document.getElementById('fi').click()" ondragover="dvr(event)" ondragleave="dvl(event)" ondrop="ddp(event)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p>Arrastra archivos o <strong>haz clic para seleccionar</strong></p>
+      <p style="font-size:10px;margin-top:7px;color:var(--td)">.js · .json · .env</p>
+    </div>
+    <input type="file" id="fi" style="display:none" multiple onchange="fsel(event)"/>
+  </div>
+  <div id="bksec" style="display:none"><div class="bl" id="bkl"><div class="ld"><div class="sp2"></div>Cargando backups...</div></div></div>
+</main>
+</div>
+
+<div class="mo" id="em">
+  <div class="md">
+    <div class="mh">
+      <div class="mt">EDITOR</div>
+      <div class="mf" id="efn">—</div>
+      <button class="ib" onclick="closeEd()" style="margin-left:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="ea"><textarea id="ce" spellcheck="false"></textarea></div>
+    <div class="mft">
+      <div class="ei" id="ei">—</div>
+      <button class="btn bg" onclick="closeEd()">Cancelar</button>
+      <button class="btn bk" onclick="sv()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardar</button>
+      <button class="btn bp" onclick="svr()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>Guardar + Reiniciar</button>
+    </div>
+  </div>
+</div>
+<div class="tc" id="tc"></div>
+
+<script>
+const API='http://100.81.246.50:3001', SEC='bmo-bridge-secret-2025';
+const H={'Content-Type':'application/json','x-secret':SEC};
+let ALL=[],SEL=new Set(),CUR=null;
+
+// BG
+(()=>{
+  const c=document.getElementById('bgc'),ctx=c.getContext('2d');
+  let W,H;
+  const rz=()=>{W=c.width=innerWidth;H=c.height=innerHeight};
+  window.addEventListener('resize',rz);rz();
+  const pts=Array.from({length:70},()=>({x:Math.random()*9999%innerWidth,y:Math.random()*9999%innerHeight,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.4+.4}));
+  function draw(){
+    requestAnimationFrame(draw);ctx.clearRect(0,0,W,H);
+    for(const p of pts){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(139,92,246,.5)';ctx.fill()}
+    for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);if(d<110){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(139,92,246,${.1*(1-d/110)})`;ctx.lineWidth=.4;ctx.stroke()}}
+  }
+  draw();
+})();
+
+function toast(m,t='nf'){
+  const el=document.createElement('div');
+  el.className=`t ${t}`;el.textContent=m;
+  document.getElementById('tc').appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+async function api(path,o={}){
+  try{const r=await fetch(API+path,{headers:H,...o});return await r.json()}
+  catch(e){return{error:e.message}}
+}
+
+function fmt(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'K';return(b/1048576).toFixed(1)+'M'}
+
+function mock(){
+  return[
+    {name:'index.js',size:85420,modified:'2026-03-03',type:'js',badge:'main'},
+    {name:'memoria.js',size:12300,modified:'2026-03-01',type:'js',badge:'mod'},
+    {name:'personalidad.js',size:8900,modified:'2026-03-01',type:'js',badge:'mod'},
+    {name:'banco_habilidades.js',size:15600,modified:'2026-02-28',type:'js',badge:'mod'},
+    {name:'autoevaluador.js',size:6700,modified:'2026-02-28',type:'js',badge:'mod'},
+    {name:'motor_evoluciones.js',size:11200,modified:'2026-02-27',type:'js',badge:'mod'},
+    {name:'bmo_endpoint.js',size:9800,modified:'2026-03-02',type:'js',badge:'mod'},
+    {name:'contexto_bmo.js',size:7400,modified:'2026-02-27',type:'js',badge:'mod'},
+    {name:'planificador.js',size:5600,modified:'2026-02-26',type:'js',badge:'mod'},
+    {name:'voluntad.js',size:4200,modified:'2026-02-25',type:'js',badge:'mod'},
+    {name:'memoria_usuarios.json',size:2400,modified:'2026-03-03',type:'json'},
+    {name:'autoeval.json',size:890,modified:'2026-03-03',type:'json'},
+    {name:'metas.json',size:450,modified:'2026-03-01',type:'json'},
+    {name:'.env',size:120,modified:'2026-03-03',type:'other'},
+    {name:'package.json',size:1800,modified:'2026-02-20',type:'json'},
+  ];
+}
+
+async function load(){
+  document.getElementById('fl').innerHTML='<div class="ld"><div class="sp2"></div>Cargando...</div>';
+  const d=await api('/files');
+  ALL=d.error?mock():d.files||[];
+  if(d.error)toast('Usando datos de muestra (endpoint /files no disponible)','nf');
+  stats();render(ALL);
+}
+
+function stats(){
+  document.getElementById('sjs').textContent=ALL.filter(f=>f.type==='js').length;
+  document.getElementById('sjn').textContent=ALL.filter(f=>f.type==='json').length;
+  document.getElementById('ssz').textContent=fmt(ALL.reduce((a,f)=>a+f.size,0));
+}
+
+function render(files){
+  const fl=document.getElementById('fl');
+  if(!files.length){fl.innerHTML='<div class="em">No hay archivos</div>';return}
+  fl.innerHTML=files.map(f=>{
+    const ic=f.type==='js'?'js':f.type==='json'?'jn':'ot';
+    const ie=f.type==='js'?'⚡':f.type==='json'?'{}':'📄';
+    const bg=f.badge?`<span class="fbg ${f.badge}">${f.badge}</span>`:'';
+    const s=SEL.has(f.name)?'sel':'';
+    const n=f.name.replace(/'/g,"\\'");
+    return`<div class="fr ${s}" data-n="${n}" onclick="tog('${n}',event)">
+      <div class="ck"></div>
+      <div class="fnc"><div class="fi ${ic}">${ie}</div><span class="fn">${f.name}</span>${bg}</div>
+      <div class="fsz">${fmt(f.size)}</div>
+      <div class="fmd">${f.modified||'—'}</div>
+      <div class="fa" onclick="event.stopPropagation()">
+        <button class="ib e" title="Editar" onclick="edit('${n}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="ib d" title="Descargar" onclick="dl('${n}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <button class="ib x" title="Eliminar" onclick="del('${n}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filt(){
+  const q=document.getElementById('qi').value.toLowerCase();
+  let f=ALL.filter(f=>f.name.toLowerCase().includes(q));
+  if(document.getElementById('ptitle').textContent.includes('JSON'))f=f.filter(x=>x.type==='json');
+  render(f);
+}
+
+function tog(n,e){
+  if(e.target.closest('.fa'))return;
+  SEL.has(n)?SEL.delete(n):SEL.add(n);
+  updSel();filt();
+}
+function updSel(){
+  const b=document.getElementById('selbar'),c=SEL.size;
+  document.getElementById('sct').textContent=c;
+  c>0?b.classList.remove('h'):b.classList.add('h');
+}
+function clrSel(){SEL.clear();updSel();filt()}
+
+async function edit(n){
+  CUR=n;document.getElementById('efn').textContent=n;
+  document.getElementById('ce').value='Cargando...';
+  document.getElementById('em').classList.add('op');
+  const d=await api('/file/'+encodeURIComponent(n));
+  if(d.error||!d.content){
+    document.getElementById('ce').value='// No se pudo cargar este archivo\n// Agrega la ruta GET /file/:name en bmo_endpoint.js';
+    toast('No se pudo cargar — agrega ruta en endpoint','er');
+  } else {
+    document.getElementById('ce').value=d.content;upd();
+  }
+}
+function upd(){
+  const v=document.getElementById('ce').value;
+  document.getElementById('ei').textContent=v.split('\n').length+' líneas · '+v.length+' chars';
+}
+document.getElementById('ce').addEventListener('input',upd);
+document.getElementById('ce').addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();const s=e.target.selectionStart,en=e.target.selectionEnd;e.target.value=e.target.value.substring(0,s)+'  '+e.target.value.substring(en);e.target.selectionStart=e.target.selectionEnd=s+2}
+});
+function closeEd(){document.getElementById('em').classList.remove('op');CUR=null}
+async function sv(){
+  if(!CUR)return;
+  const c=document.getElementById('ce').value;
+  const d=await api('/file/'+encodeURIComponent(CUR),{method:'PUT',body:JSON.stringify({content:c})});
+  if(d.error)toast('Error: '+d.error,'er');
+  else{toast('Guardado','ok');closeEd();load()}
+}
+async function svr(){await sv();await restartBot()}
+
+async function dl(n){
+  const d=await api('/file/'+encodeURIComponent(n));
+  if(d.error||!d.content){toast('No se pudo descargar','er');return}
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([d.content],{type:'text/plain'}));
+  a.download=n;a.click();toast('Descargado: '+n,'ok');
+}
+async function dlSel(){for(const n of SEL)await dl(n)}
+async function del(n){
+  if(!confirm('¿Eliminar '+n+'?'))return;
+  const d=await api('/file/'+encodeURIComponent(n),{method:'DELETE'});
+  if(d.error)toast('Error al eliminar','er');
+  else{toast(n+' eliminado','ok');load()}
+}
+async function delSel(){
+  if(!confirm('¿Eliminar '+SEL.size+' archivos?'))return;
+  for(const n of SEL)await api('/file/'+encodeURIComponent(n),{method:'DELETE'});
+  toast(SEL.size+' eliminados','ok');clrSel();load();
+}
+
+function dvr(e){e.preventDefault();e.currentTarget.classList.add('dv')}
+function dvl(e){e.currentTarget.classList.remove('dv')}
+function ddp(e){e.preventDefault();e.currentTarget.classList.remove('dv');upFiles(e.dataTransfer.files)}
+function fsel(e){upFiles(e.target.files)}
+async function upFiles(files){
+  for(const f of files){
+    const txt=await f.text();
+    const d=await api('/file/'+encodeURIComponent(f.name),{method:'PUT',body:JSON.stringify({content:txt})});
+    if(d.error)toast('Error: '+f.name,'er');else toast(f.name+' subido','ok');
+  }
+  load();
+}
+
+async function restartBot(){
+  toast('Reiniciando BMO...','nf');
+  const d=await api('/restart',{method:'POST'});
+  if(d.error)toast('Error: '+d.error,'er');else toast('BMO reiniciado','ok');
+}
+async function mkBackup(){
+  toast('Creando backup...','nf');
+  const d=await api('/backup',{method:'POST'});
+  if(d.error)toast('Error al crear backup','er');else toast('Backup creado','ok');
+}
+
+function nav(sec,el){
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('act'));
+  el.classList.add('act');
+  document.getElementById('ftable').style.display='none';
+  document.getElementById('upsec').style.display='none';
+  document.getElementById('bksec').style.display='none';
+  document.getElementById('st').style.display='none';
+  document.getElementById('selbar').classList.add('h');
+  const t={all:'ARCHIVOS DEL PROYECTO',json:'JSON / DATOS',bk:'BACKUPS',up:'SUBIR ARCHIVO'};
+  document.getElementById('ptitle').textContent=t[sec]||sec.toUpperCase();
+  if(sec==='all'){document.getElementById('ftable').style.display='';document.getElementById('st').style.display='';load()}
+  else if(sec==='json'){document.getElementById('ftable').style.display='';render(ALL.filter(f=>f.type==='json'))}
+  else if(sec==='up'){document.getElementById('upsec').style.display=''}
+  else if(sec==='bk'){document.getElementById('bksec').style.display='';ldBk()}
+}
+
+async function ldBk(){
+  const l=document.getElementById('bkl');
+  l.innerHTML='<div class="ld"><div class="sp2"></div>Cargando...</div>';
+  const d=await api('/backups');
+  const bks=d.backups||[];
+  document.getElementById('sbk').textContent=bks.length;
+  if(!bks.length){l.innerHTML='<div class="em">No hay backups</div>';return}
+  l.innerHTML=bks.map(b=>`<div class="bi"><span class="bn">📦 ${b.name}</span><span class="bd2">${b.date||''}</span><button class="btn bg" onclick="dl('${b.name}')">Descargar</button><button class="btn bp" onclick="rst('${b.name}')">Restaurar</button></div>`).join('');
+}
+async function rst(n){
+  if(!confirm('¿Restaurar '+n+'?'))return;
+  const d=await api('/restore',{method:'POST',body:JSON.stringify({name:n})});
+  if(d.error)toast('Error','er');else{toast('Restaurado','ok');load()}
+}
+
+async function chk(){
+  const d=await api('/ping');
+  const b=document.getElementById('hb'),s=document.getElementById('hs');
+  if(d.error){b.textContent='SIN CONEXIÓN';b.style.borderColor='rgba(244,63,94,.3)';b.style.color='var(--danger)';s.textContent='offline'}
+  else{b.textContent='CONECTADO';b.style.borderColor='rgba(52,211,153,.3)';b.style.color='var(--ok)';s.textContent=d.status||'online'}
+}
+
+load();chk();setInterval(chk,30000);
+</script>
+</body>
+</html>
