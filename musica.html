@@ -2704,8 +2704,8 @@ function closeQueue(e) { if (!e || e.target === document.getElementById('queuePa
 function togglePlay() { if (!aud.src) return; if (aud.paused) { aud.play(); setUI(true); } else { aud.pause(); setUI(false); } }
 
 function setUI(p) {
-  document.getElementById('npPlay').textContent = p ? '⏸' : '▶';
-  document.getElementById('mPlay').textContent = p ? '⏸' : '▶';
+  document.getElementById('npPlay').textContent = p ? '⏸️' : '▶';
+  document.getElementById('mPlay').textContent = p ? '⏸️' : '▶';
   document.getElementById('npCov').classList.toggle('p', p);
   document.getElementById('eq').classList.toggle('off', !p);
   if (document.getElementById('np')?.classList.contains('open')) startWormLoop();
