@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMO Flow — Agentes en tiempo real</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; overflow: hidden; }
+  
+  /* Header */
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: #161b22; border-bottom: 1px solid #30363d; }
+  .header h1 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .logo { width: 28px; height: 28px; background: linear-gradient(135deg, #58a6ff, #bc8cff); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; animation: pulse 2s infinite; }
+  .dot.offline { background: #f85149; animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #e6edf3; cursor: pointer; font-size: 13px; }
+  .btn:hover { background: #30363d; }
+  .btn.primary { background: #238636; border-color: #238636; }
+  .btn.primary:hover { background: #2ea043; }
+
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; height: calc(100vh - 53px); }
+
+  /* Sidebar */
+  .sidebar { background: #161b22; border-right: 1px solid #30363d; overflow-y: auto; padding: 16px; }
+  .sidebar h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: #8b949e; margin-bottom: 12px; }
+  
+  .agent-card { background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all .2s; }
+  .agent-card:hover { border-color: #58a6ff; }
+  .agent-card.active { border-color: #58a6ff; background: #1c2b3a; }
+  .agent-card.running { border-color: #3fb950; background: #0d2318; }
+  .agent-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .agent-type { font-size: 11px; color: #8b949e; margin-top: 2px; }
+  .agent-icon { font-size: 16px; }
+
+  /* Canvas */
+  .canvas { position: relative; overflow: hidden; background: #0d1117; background-image: radial-gradient(#21262d 1px, transparent 1px); background-size: 24px 24px; }
+  
+  .flow-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 0; align-items: center; }
+  
+  .node { background: #21262d; border: 2px solid #30363d; border-radius: 10px; padding: 14px 18px; min-width: 140px; text-align: center; position: relative; transition: all .3s; }
+  .node.active { border-color: #3fb950; box-shadow: 0 0 20px rgba(63,185,80,.3); }
+  .node.done { border-color: #58a6ff; }
+  .node.error { border-color: #f85149; }
+  .node.waiting { border-color: #d29922; }
+  .node-icon { font-size: 24px; margin-bottom: 6px; }
+  .node-name { font-size: 12px; font-weight: 600; }
+  .node-status { font-size: 10px; color: #8b949e; margin-top: 2px; }
+  
+  .connector { width: 40px; height: 2px; background: #30363d; position: relative; flex-shrink: 0; }
+  .connector.active { background: #3fb950; }
+  .connector.done { background: #58a6ff; }
+  .connector::after { content: '▶'; position: absolute; right: -6px; top: -8px; font-size: 10px; color: #30363d; }
+  .connector.active::after { color: #3fb950; }
+  .connector.done::after { color: #58a6ff; }
+
+  /* Execution log panel */
+  .log-panel { background: #161b22; border-left: 1px solid #30363d; display: flex; flex-direction: column; }
+  .log-header { padding: 12px 16px; border-bottom: 1px solid #30363d; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .log-body { flex: 1; overflow-y: auto; padding: 12px; font-family: 'Courier New', monospace; font-size: 11px; }
+  
+  .log-entry { padding: 6px 8px; border-radius: 4px; margin-bottom: 4px; border-left: 3px solid #30363d; }
+  .log-entry.paso { border-left-color: #58a6ff; background: #1c2b3a; }
+  .log-entry.success { border-left-color: #3fb950; background: #0d2318; }
+  .log-entry.error { border-left-color: #f85149; background: #2d1117; }
+  .log-entry.info { border-left-color: #8b949e; }
+  .log-time { color: #8b949e; font-size: 10px; }
+  .log-text { color: #e6edf3; margin-top: 2px; word-break: break-all; }
+  .log-accion { color: #58a6ff; font-weight: bold; }
+
+  /* Bottom bar */
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #161b22; border-top: 1px solid #30363d; padding: 8px 20px; display: flex; align-items: center; gap: 16px; font-size: 12px; color: #8b949e; }
+  .stat { display: flex; align-items: center; gap: 4px; }
+  .stat span { color: #e6edf3; font-weight: 600; }
+
+  /* Empty state */
+  .empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #8b949e; }
+  .empty-state .big { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #30363d; border-top-color: #3fb950; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Config modal */
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal.show { display: flex; }
+  .modal-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; width: 420px; }
+  .modal-box h3 { margin-bottom: 16px; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 4px; }
+  .form-group input { width: 100%; padding: 8px 12px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; font-size: 13px; }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><div class="logo">🤖</div> BMO Flow</h1>
+  <div class="status">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">Conectando...</span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn" onclick="clearLog()">Limpiar</button>
+    <button class="btn primary" onclick="showConfig()">⚙ Configurar</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Sidebar: agentes disponibles -->
+  <div class="sidebar">
+    <h3>Agentes</h3>
+    <div id="agentList">
+      <div class="agent-card" data-agent="PLANNER">
+        <div class="agent-name"><span class="agent-icon">🧠</span> Planner</div>
+        <div class="agent-type">Planificación de tareas</div>
+      </div>
+      <div class="agent-card" data-agent="MANAGER">
+        <div class="agent-name"><span class="agent-icon">👔</span> Manager</div>
+        <div class="agent-type">Decisión de estrategia</div>
+      </div>
+      <div class="agent-card" data-agent="EXECUTOR">
+        <div class="agent-name"><span class="agent-icon">⚡</span> Executor</div>
+        <div class="agent-type">Ejecución de herramientas</div>
+      </div>
+      <div class="agent-card" data-agent="CRITIC">
+        <div class="agent-name"><span class="agent-icon">🔍</span> Critic</div>
+        <div class="agent-type">Evaluación de resultados</div>
+      </div>
+      <div class="agent-card" data-agent="MEMORY">
+        <div class="agent-name"><span class="agent-icon">💾</span> Memory</div>
+        <div class="agent-type">Gestión de memoria</div>
+      </div>
+      <div class="agent-card" data-agent="REFLECTION">
+        <div class="agent-name"><span class="agent-icon">🪞</span> Reflection</div>
+        <div class="agent-type">Análisis y aprendizaje</div>
+      </div>
+      <div class="agent-card" data-agent="CODE">
+        <div class="agent-name"><span class="agent-icon">💻</span> Code Agent</div>
+        <div class="agent-type">Generación de código</div>
+      </div>
+      <div class="agent-card" data-agent="METACOG">
+        <div class="agent-name"><span class="agent-icon">🎯</span> Metacog</div>
+        <div class="agent-type">Metacognición</div>
+      </div>
+
+      <h3 style="margin-top:20px">Herramientas</h3>
+      <div class="agent-card" data-agent="buscar_web">
+        <div class="agent-name"><span class="agent-icon">🔎</span> Buscar Web</div>
+        <div class="agent-type">Búsqueda en internet</div>
+      </div>
+      <div class="agent-card" data-agent="github_manager">
+        <div class="agent-name"><span class="agent-icon">📦</span> GitHub</div>
+        <div class="agent-type">Gestión de repositorios</div>
+      </div>
+      <div class="agent-card" data-agent="web_project_builder">
+        <div class="agent-name"><span class="agent-icon">🌐</span> Web Builder</div>
+        <div class="agent-type">Proyectos web</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas: flujo visual -->
+  <div class="canvas" id="canvas">
+    <div class="empty-state" id="emptyState">
+      <div class="big">🤖</div>
+      <p>Esperando mensajes de BMO...</p>
+      <p style="margin-top:8px;font-size:12px">Envía un mensaje por WhatsApp para ver el flujo</p>
+    </div>
+    <div class="flow-container" id="flowContainer" style="display:none"></div>
+  </div>
+
+  <!-- Log panel -->
+  <div class="log-panel">
+    <div class="log-header">
+      📋 Ejecución en tiempo real
+      <div class="spinner" id="spinner" style="display:none"></div>
+    </div>
+    <div class="log-body" id="logBody"></div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="stat">🟢 Pasos ejecutados: <span id="statPasos">0</span></div>
+  <div class="stat">⚡ Última acción: <span id="statUltima">—</span></div>
+  <div class="stat">🕐 <span id="statTime">—</span></div>
+</div>
+
+<!-- Config Modal -->
+<div class="modal" id="configModal">
+  <div class="modal-box">
+    <h3>⚙ Configuración</h3>
+    <div class="form-group">
+      <label>URL del Pi (Tailscale)</label>
+      <input type="text" id="piUrl" value="http://100.81.246.50:3001" placeholder="http://IP:3001">
+    </div>
+    <div class="form-group">
+      <label>Secret (BMO_SECRET)</label>
+      <input type="password" id="piSecret" value="bmo-bridge-secret-2025" placeholder="secret">
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="hideConfig()">Cancelar</button>
+      <button class="btn primary" onclick="saveConfig()">Guardar y conectar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Config
+let config = {
+  url: localStorage.getItem('bmo_url') || 'http://100.81.246.50:3001',
+  secret: localStorage.getItem('bmo_secret') || 'bmo-bridge-secret-2025'
+};
+
+// Estado
+let pasos = [];
+let pasoActual = -1;
+let totalPasos = 0;
+let contPasos = 0;
+let sse = null;
+
+// Agentes del flujo actual
+const AGENT_META = {
+  planner: { icon: '🧠', color: '#58a6ff', name: 'Planner' },
+  manager: { icon: '👔', color: '#bc8cff', name: 'Manager' },
+  executor: { icon: '⚡', color: '#3fb950', name: 'Executor' },
+  critic: { icon: '🔍', color: '#d29922', name: 'Critic' },
+  memory: { icon: '💾', color: '#58a6ff', name: 'Memory' },
+  reflection: { icon: '🪞', color: '#8b949e', name: 'Reflection' },
+  code_agent: { icon: '💻', color: '#f0883e', name: 'Code' },
+  buscar_web: { icon: '🔎', color: '#58a6ff', name: 'Web Search' },
+  github_manager: { icon: '📦', color: '#e6edf3', name: 'GitHub' },
+  web_project_builder: { icon: '🌐', color: '#58a6ff', name: 'Web Builder' },
+  generar_contenido: { icon: '✍️', color: '#bc8cff', name: 'Generar' },
+  enviar_mensaje: { icon: '📤', color: '#3fb950', name: 'Enviar' },
+  buscar_clima: { icon: '🌤', color: '#58a6ff', name: 'Clima' },
+  buscar_precio: { icon: '💰', color: '#d29922', name: 'Precio' },
+  check_system_health: { icon: '🖥', color: '#3fb950', name: 'Sistema' },
+  memory_search: { icon: '🔍', color: '#bc8cff', name: 'Memoria' },
+  knowledge_manager: { icon: '📚', color: '#f0883e', name: 'Knowledge' },
+};
+
+function getMeta(accion) {
+  const key = accion?.toLowerCase();
+  return AGENT_META[key] || { icon: '⚙️', color: '#8b949e', name: accion };
+}
+
+// Conectar SSE
+function conectar() {
+  if (sse) sse.close();
+  
+  document.getElementById('statusDot').className = 'dot offline';
+  document.getElementById('statusText').textContent = 'Conectando...';
+
+  // Primero ping
+  fetch(config.url + '/ping')
+    .then(r => r.json())
+    .then(() => {
+      document.getElementById('statusDot').className = 'dot';
+      document.getElementById('statusText').textContent = 'Conectado al Pi';
+      iniciarSSE();
+    })
+    .catch(() => {
+      document.getElementById('statusDot').className = 'dot offline';
+      document.getElementById('statusText').textContent = 'Sin conexión';
+      setTimeout(conectar, 5000);
+    });
+}
+
+function iniciarSSE() {
+  sse = new EventSource(config.url + '/eventos');
+  
+  sse.onmessage = (e) => {
+    try {
+      const evento = JSON.parse(e.data);
+      manejarEvento(evento);
+    } catch(err) {}
+  };
+
+  sse.onerror = () => {
+    document.getElementById('statusDot').className = 'dot offline';
+    document.getElementById('statusText').textContent = 'Reconectando...';
+    setTimeout(conectar, 3000);
+  };
+}
+
+function manejarEvento(evento) {
+  const { tipo, datos, ts } = evento;
+  const time = new Date(ts).toLocaleTimeString('es-MX');
+
+  if (tipo === 'paso') {
+    contPasos++;
+    document.getElementById('statPasos').textContent = contPasos;
+    document.getElementById('statUltima').textContent = datos.accion;
+    document.getElementById('statTime').textContent = time;
+    document.getElementById('spinner').style.display = 'inline-block';
+
+    // Actualizar flujo visual
+    actualizarFlujo(datos);
+    
+    // Log entry
+    addLog('paso', time, datos.accion, `${datos.descripcion || ''} — ${datos.input}`);
+
+  } else if (tipo === 'success') {
+    document.getElementById('spinner').style.display = 'none';
+    addLog('success', time, '✅ Completado', datos.resultado?.slice(0,100) || '');
+    marcarNodoDone(datos.accion);
+
+  } else if (tipo === 'error') {
+    document.getElementById('spinner').style.display = 'none';
+    addLog('error', time, '❌ Error', datos.error?.slice(0,100) || '');
+  }
+}
+
+// Flujo visual
+let nodosCreados = {};
+
+function actualizarFlujo(datos) {
+  const container = document.getElementById('flowContainer');
+  const emptyState = document.getElementById('emptyState');
+  
+  emptyState.style.display = 'none';
+  container.style.display = 'flex';
+
+  const accion = datos.accion;
+  const meta = getMeta(accion);
+
+  // Si es paso nuevo en sesión diferente, limpiar
+  if (datos.indice === 1) {
+    container.innerHTML = '';
+    nodosCreados = {};
+  }
+
+  if (!nodosCreados[accion]) {
+    // Agregar conector si hay nodos previos
+    if (Object.keys(nodosCreados).length > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'connector active';
+      conn.id = `conn-${accion}`;
+      container.appendChild(conn);
+    }
+
+    // Crear nodo
+    const nodo = document.createElement('div');
+    nodo.className = 'node active';
+    nodo.id = `node-${accion}`;
+    nodo.innerHTML = `
+      <div class="node-icon">${meta.icon}</div>
+      <div class="node-name">${meta.name}</div>
+      <div class="node-status"><div class="spinner"></div> ejecutando</div>
+    `;
+    container.appendChild(nodo);
+    nodosCreados[accion] = nodo;
+
+    // Desactivar nodos anteriores
+    Object.entries(nodosCreados).forEach(([key, n]) => {
+      if (key !== accion) {
+        n.className = 'node done';
+        n.querySelector('.node-status').textContent = '✓ listo';
+      }
+    });
+  }
+}
+
+function marcarNodoDone(accion) {
+  const nodo = nodosCreados[accion];
+  if (nodo) {
+    nodo.className = 'node done';
+    nodo.querySelector('.node-status').textContent = '✓ listo';
+  }
+}
+
+// Log
+function addLog(tipo, time, accion, texto) {
+  const body = document.getElementById('logBody');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${tipo}`;
+  entry.innerHTML = `
+    <div class="log-time">${time}</div>
+    <div class="log-text"><span class="log-accion">${accion}</span>${texto ? ' — ' + texto : ''}</div>
+  `;
+  body.appendChild(entry);
+  body.scrollTop = body.scrollHeight;
+
+  // Límite de 200 entradas
+  while (body.children.length > 200) body.removeChild(body.firstChild);
+}
+
+function clearLog() {
+  document.getElementById('logBody').innerHTML = '';
+  document.getElementById('flowContainer').innerHTML = '';
+  document.getElementById('flowContainer').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'block';
+  nodosCreados = {};
+  contPasos = 0;
+  document.getElementById('statPasos').textContent = '0';
+}
+
+// Config modal
+function showConfig() { document.getElementById('configModal').classList.add('show'); }
+function hideConfig() { document.getElementById('configModal').classList.remove('show'); }
+function saveConfig() {
+  config.url = document.getElementById('piUrl').value;
+  config.secret = document.getElementById('piSecret').value;
+  localStorage.setItem('bmo_url', config.url);
+  localStorage.setItem('bmo_secret', config.secret);
+  hideConfig();
+  conectar();
+}
+
+// Cargar logs iniciales
+async function cargarLogsIniciales() {
+  try {
+    const r = await fetch(config.url + '/logs');
+    const data = await r.json();
+    if (data.logs) {
+      data.logs.slice(-20).forEach(line => {
+        if (line.includes('[LOOP] paso=')) {
+          const m = line.match(/paso=(\w+)/);
+          if (m) addLog('info', '—', m[1], line.slice(0, 80));
+        }
+      });
+    }
+  } catch(e) {}
+}
+
+// Iniciar
+conectar();
+setTimeout(cargarLogsIniciales, 2000);
+</script>
+</body>
+</html>
